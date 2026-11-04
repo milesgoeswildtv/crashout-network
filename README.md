@@ -27,3 +27,6 @@ The project does not contain Supabase project credentials. Until a project is co
 
 ## Reporting and moderation
 Migration `0008_player_reporting_moderation.sql` adds authenticated player reports and a moderator queue. Players can report another player from that player's public profile using a fixed category and optional details. A reporter cannot report themselves or create multiple active reports against the same target. Reports are not directly readable or writable from the browser; submission, queue access, and review transitions use scoped database functions. Moderators can take a report for review, resolve it, or dismiss it. Every submission and review transition is written to the audit log. This initial workflow does not suspend accounts, ban players, or automatically decide whether a report is valid.
+
+
+<!-- CI verification branch: exercises the complete current application source without changing runtime behavior. -->
