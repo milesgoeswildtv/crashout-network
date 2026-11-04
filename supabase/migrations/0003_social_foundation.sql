@@ -34,9 +34,9 @@ as $$
     and length(trim(coalesce(search_text,''))) >= 2
     and p.id <> auth.uid()
     and (
-      p.username ilike '%' || replace(trim(search_text), '%', '\\%') || '%'
-      or p.display_name ilike '%' || replace(trim(search_text), '%', '\\%') || '%'
-      or p.player_id ilike '%' || replace(trim(search_text), '%', '\\%') || '%'
+      strpos(lower(p.username), lower(trim(search_text))) > 0
+      or strpos(lower(p.display_name), lower(trim(search_text))) > 0
+      or strpos(lower(p.player_id), lower(trim(search_text))) > 0
     )
     and not exists (
       select 1 from public.user_blocks b
