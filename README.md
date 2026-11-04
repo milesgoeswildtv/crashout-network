@@ -10,7 +10,7 @@ Mobile-first React + TypeScript + Vite hub for the CRASHOUT network. CRASHOUT is
 - `npm run typecheck` and `npm run build`
 
 ## Status
-This is an initial frontend and database foundation. Authentication screens, server-side profile provisioning, player directory, friend requests, and private notifications now have initial UI/RPC foundations. Wallet transactions, purchases, and admin operations are not complete. No destination is represented as live without a verified integration.
+This is an initial frontend and database foundation. Authentication screens, server-side profile provisioning, player directory, friend requests, private notifications, and editable public identity settings now have initial UI/RPC foundations. Wallet transactions, purchases, and admin operations are not complete. No destination is represented as live without a verified integration.
 
 Review `supabase/migrations/0001_initial.sql` before applying to a NEW Supabase project. Never expose service-role keys in browser code. Wallet and role mutations must be server-side, atomic, audited, and idempotent. Game currencies remain isolated.
 
