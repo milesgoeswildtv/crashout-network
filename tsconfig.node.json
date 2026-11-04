@@ -15,7 +15,8 @@
     "strict": true,
     "types": [
       "node"
-    ]
+    ],
+    "composite": true
   },
   "include": [
     "vite.config.ts"
