@@ -5,6 +5,7 @@ import { supabase } from './lib';
 
 type Player = { player_id:string; username:string; display_name:string; avatar_url:string|null };
 type RequestRow = { id:string; requester:string; player?:Player };
+type PublicProfile={player_id:string;username:string;display_name:string;joined_at:string;friend_count:number};
 type NotificationRow = { id:string; title:string; body:string; read_at:string|null; created_at:string };
 
 export default function SocialPanel({session,mode}:{session:Session|null;mode:'PLAYERS'|'NOTIFICATIONS'}) {
@@ -13,6 +14,7 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
   const [requests,setRequests]=useState<RequestRow[]>([]);
   const [friends,setFriends]=useState<Player[]>([]);
   const [notifications,setNotifications]=useState<NotificationRow[]>([]);
+  const [selectedProfile,setSelectedProfile]=useState<PublicProfile|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   async function refresh() {
@@ -54,6 +56,18 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
     try{const {error}=await supabase.rpc('respond_friend_request',{request_id:id,accept_request:accept});if(error)throw error;await refresh();}
     catch(e){setError(e instanceof Error?e.message:'Could not update request.');}finally{setBusy(false);}
   }
+  async function viewProfile(p:Player) {
+    if(!supabase)return;
+    setBusy(true);setError('');
+    try {
+      const {data,error}=await supabase.rpc('get_public_player_profile',{target_player_id:p.player_id});
+      if(error)throw error;
+      const row=Array.isArray(data)?data[0]:data;
+      if(!row)throw new Error('This player profile is unavailable.');
+      setSelectedProfile(row as PublicProfile);
+    } catch(e) {setError(e instanceof Error?e.message:'Could not open player profile.');}
+    finally {setBusy(false);}
+  }
   async function read(n:NotificationRow) {
     if(!supabase||n.read_at)return;
     const {error}=await supabase.rpc('mark_notification_read',{notification_id:n.id});
@@ -65,12 +79,12 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
     <h1>{mode==='PLAYERS'?<>FIND YOUR <em>PEOPLE.</em></>:<>YOUR <em>INBOX.</em></>}</h1>
     <p className="social-lead">{mode==='PLAYERS'?'Search by username, display name, or six-character Player ID.':'Friend requests and network updates.'}</p>
     {!session?<div className="empty-state">SIGN IN TO ACCESS YOUR NETWORK.</div>:mode==='PLAYERS'?<>
-      <form className="player-search" onSubmit={search}><Search size={18}/><input value={term} onChange={e=>setTerm(e.target.value)} minLength={2} placeholder="Search players..." aria-label="Search players"/><button className="primary" disabled={busy||term.trim().length<2}>SEARCH</button></form>
+      {selectedProfile&&<article className="public-profile-card"><div className="public-profile-top"><div className="player-avatar"><UserRound/></div><div><span>CRASHOUT PLAYER</span><h2>{selectedProfile.display_name}</h2><b>@{selectedProfile.username}</b></div><button className="social-muted" onClick={()=>setSelectedProfile(null)}>CLOSE</button></div><div className="public-profile-stats"><div><span>PLAYER ID</span><b>{selectedProfile.player_id}</b></div><div><span>FRIENDS</span><b>{selectedProfile.friend_count}</b></div><div><span>JOINED</span><b>{new Date(selectedProfile.joined_at).toLocaleDateString()}</b></div></div></article>}<form className="player-search" onSubmit={search}><Search size={18}/><input value={term} onChange={e=>setTerm(e.target.value)} minLength={2} placeholder="Search players..." aria-label="Search players"/><button className="primary" disabled={busy||term.trim().length<2}>SEARCH</button></form>
       {error&&<div className="auth-error">{error}</div>}
-      {results.length>0&&<><h2 className="social-heading">SEARCH RESULTS</h2><div className="player-list">{results.map(p=>playerRow(p,<button className="social-action" disabled={busy} onClick={()=>add(p)}><UserPlus size={15}/> ADD</button>))}</div></>}
+      {results.length>0&&<><h2 className="social-heading">SEARCH RESULTS</h2><div className="player-list">{results.map(p=>playerRow(p,<div className="player-controls"><button className="social-muted" disabled={busy} onClick={()=>viewProfile(p)}>VIEW</button><button className="social-action" disabled={busy} onClick={()=>add(p)}><UserPlus size={15}/> ADD</button></div>))}</div></>}
       {requests.length>0&&<><h2 className="social-heading">INCOMING REQUESTS <small>{requests.length}</small></h2><div className="player-list">{requests.map(r=><article className="player-row" key={r.id}><div className="player-avatar"><UserRound/></div><div className="player-info"><b>{r.player?.display_name||'CRASHOUT PLAYER'}</b><span>@{r.player?.username||'unknown'} · {r.player?.player_id||''}</span></div><button className="social-action" disabled={busy} onClick={()=>respond(r.id,true)}><Check size={15}/> ACCEPT</button><button className="social-muted" disabled={busy} onClick={()=>respond(r.id,false)}>DECLINE</button></article>)}</div></>}
       <h2 className="social-heading">YOUR FRIENDS <small>{friends.length}</small></h2>
-      {friends.length?<div className="player-list">{friends.map(p=>playerRow(p))}</div>:<div className="empty-state">NO CONNECTIONS YET. FIND YOUR PEOPLE ABOVE.</div>}
+      {friends.length?<div className="player-list">{friends.map(p=>playerRow(p,<button className="social-muted" disabled={busy} onClick={()=>viewProfile(p)}>VIEW PROFILE</button>))}</div>:<div className="empty-state">NO CONNECTIONS YET. FIND YOUR PEOPLE ABOVE.</div>}
     </>:<>
       {error&&<div className="auth-error">{error}</div>}
       {notifications.length?<div className="player-list">{notifications.map(n=><article className={'notification-row '+(n.read_at?'read':'unread')} key={n.id} onClick={()=>read(n)}><div className="notification-mark"><Bell size={16}/></div><div className="player-info"><b>{n.title}</b><span>{n.body}</span><small>{new Date(n.created_at).toLocaleString()}</small></div>{!n.read_at&&<i className="unread-dot"/>}</article>)}</div>:<div className="empty-state">NOTHING HERE. THE SILENCE IS TEMPORARY.</div>}
