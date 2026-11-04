@@ -14,7 +14,9 @@ The frontend now includes Supabase authentication flows, server-side profile pro
 
 Review `supabase/migrations/0001_initial.sql` before applying to a NEW Supabase project. Never expose service-role keys in browser code. Wallet and role mutations must be server-side, atomic, audited, and idempotent. Game currencies remain isolated.
 
-First administrator setup is documented in `docs/ADMIN_BOOTSTRAP.md`; the first superadministrator must be assigned through the trusted Supabase SQL Editor, never from the client.\n\n## Migration discipline
+First administrator setup is documented in `docs/ADMIN_BOOTSTRAP.md`; the first superadministrator must be assigned through the trusted Supabase SQL Editor, never from the client.
+
+## Migration discipline
 Apply the SQL files once, in numeric order, to a new Supabase project. Do not skip migrations or apply them out of order. Back up an existing project before introducing these schema changes.
 
 ## Account setup
