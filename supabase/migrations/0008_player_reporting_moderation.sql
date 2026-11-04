@@ -29,7 +29,7 @@ as $$
 declare target_user uuid; report_uuid uuid; clean_details text;
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
-  if report_category not in ('harassment','cheating','impersonation','spam','other') then
+  if report_category is null or report_category not in ('harassment','cheating','impersonation','spam','other') then
     raise exception 'Choose a valid report category';
   end if;
   clean_details := trim(coalesce(report_details,''));
@@ -118,3 +118,28 @@ revoke all on function public.admin_review_player_report(uuid,text,text) from pu
 grant execute on function public.submit_player_report(text,text,text) to authenticated;
 grant execute on function public.admin_list_player_reports(text) to authenticated;
 grant execute on function public.admin_review_player_report(uuid,text,text) to authenticated;
+
+-- Moderators can access the restricted console, but cannot change player roles.
+create or replace function public.admin_network_overview()
+returns jsonb
+language plpgsql security definer
+set search_path = public, pg_temp
+as $$
+declare result jsonb;
+begin
+  if auth.uid() is null or not exists(
+    select 1 from public.user_roles where user_id=auth.uid()
+      and role in ('moderator','admin','superadmin')
+  ) then raise exception 'Moderator access required'; end if;
+  select jsonb_build_object(
+    'players',(select count(*) from public.profiles),
+    'pending_friend_requests',(select count(*) from public.friendships where status='pending'),
+    'unread_notifications',(select count(*) from public.notifications where read_at is null),
+    'games',(select coalesce(jsonb_agg(jsonb_build_object('key',key,'display_name',display_name,'status',status) order by display_name),'[]'::jsonb) from public.games),
+    'recent_audit',(select coalesce(jsonb_agg(jsonb_build_object('id',id,'actor',actor,'action',action,'target_type',target_type,'target_id',target_id,'created_at',created_at) order by created_at desc),'[]'::jsonb) from (select * from public.audit_log order by created_at desc limit 25) a)
+  ) into result;
+  return result;
+end;
+$$;
+revoke all on function public.admin_network_overview() from public, anon;
+grant execute on function public.admin_network_overview() to authenticated;
