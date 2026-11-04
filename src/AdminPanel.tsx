@@ -5,6 +5,7 @@ import { supabase } from './lib';
 type Role='player'|'moderator'|'admin'|'superadmin';
 type AdminPlayer={player_id:string;username:string;display_name:string;role:Role;created_at:string};
 type Overview={players:number;pending_friend_requests:number;unread_notifications:number;games:{key:string;display_name:string;status:string}[];recent_audit:{id:number;actor:string|null;action:string;target_type:string|null;target_id:string|null;created_at:string}[]};
+type Report={id:string;category:string;details:string;status:string;moderator_note:string;created_at:string;reporter_player_id:string;reporter_username:string;target_player_id:string;target_username:string};
 export default function AdminPanel({role}:{role:Role}) {
  const [overview,setOverview]=useState<Overview|null>(null);
  const [players,setPlayers]=useState<AdminPlayer[]>([]);
@@ -12,13 +13,31 @@ export default function AdminPanel({role}:{role:Role}) {
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
+ const [reports,setReports]=useState<Report[]>([]);
+ const [reportFilter,setReportFilter]=useState('open');
+ const [reviewNotes,setReviewNotes]=useState<Record<string,string>>({});
  async function load(){
   if(!supabase)return;setBusy(true);setError('');
   try{const {data,error}=await supabase.rpc('admin_network_overview');if(error)throw error;setOverview(data as Overview);}
   catch(e){setError(e instanceof Error?e.message:'Could not load admin overview.');}
   finally{setBusy(false);}
  }
- useEffect(()=>{load();},[]);
+ async function loadReports(filter=reportFilter){
+  if(!supabase)return;setBusy(true);setError('');
+  try{const {data,error}=await supabase.rpc('admin_list_player_reports',{report_status:filter});if(error)throw error;setReports((data||[]) as Report[]);}
+  catch(e){setError(e instanceof Error?e.message:'Could not load moderation queue.');}
+  finally{setBusy(false);}
+ }
+ async function reviewReport(report:Report,decision:'reviewing'|'resolved'|'dismissed'){
+  if(!supabase)return;
+  const note=reviewNotes[report.id]||'';
+  if(!window.confirm(decision==='reviewing'?'Assign this report for review?':decision==='resolved'?'Resolve this report?':'Dismiss this report?'))return;
+  setBusy(true);setError('');setMessage('');
+  try{const {error}=await supabase.rpc('admin_review_player_report',{report_id:report.id,decision,review_note:note});if(error)throw error;setMessage('Moderation action recorded in the audit log.');await loadReports();}
+  catch(e){setError(e instanceof Error?e.message:'Moderation action failed.');}
+  finally{setBusy(false);}
+ }
+ useEffect(()=>{load();loadReports('open');},[]);
  async function search(e?:FormEvent){
   e?.preventDefault();if(!supabase)return;setBusy(true);setError('');
   try{const {data,error}=await supabase.rpc('admin_find_players',{search_text:term.trim()});if(error)throw error;setPlayers((data||[]) as AdminPlayer[]);}
@@ -47,6 +66,10 @@ export default function AdminPanel({role}:{role:Role}) {
    <form className="player-search" onSubmit={search}><Search size={18}/><input value={term} onChange={e=>setTerm(e.target.value)} placeholder="Search username, display name, or Player ID"/><button className="primary" disabled={busy}>SEARCH</button></form>
    {players.length>0&&<div className="player-list admin-player-list">{players.map(p=><article className="player-row" key={p.player_id}><div className="player-avatar"><Users size={16}/></div><div className="player-info"><b>{p.display_name}</b><span>@{p.username} · {p.player_id}</span></div><span className={'role-pill role-'+p.role}>{p.role}</span>{role==='superadmin'&&p.role!=='superadmin'&&<select className="role-select" value={p.role} disabled={busy} onChange={e=>setPlayerRole(p,e.target.value as Role)} aria-label={'Change role for '+p.username}><option value="player">PLAYER</option><option value="moderator">MODERATOR</option><option value="admin">ADMIN</option></select>}</article>)}</div>}
    {role!=='superadmin'&&<div className="admin-note">Role changes are restricted to superadministrators. This account has read-only role visibility.</div>}
+  </div>
+  <div className="admin-section"><div className="settings-title"><Shield/><div><b>PLAYER REPORTS / MODERATION QUEUE</b><span>Private reports. Review actions are permission-checked and audited.</span></div></div>
+   <div className="report-toolbar"><label>QUEUE<select value={reportFilter} onChange={e=>{setReportFilter(e.target.value);loadReports(e.target.value)}}><option value="open">OPEN</option><option value="reviewing">IN REVIEW</option><option value="resolved">RESOLVED</option><option value="dismissed">DISMISSED</option><option value="all">ALL REPORTS</option></select></label><button className="social-muted" disabled={busy} onClick={()=>loadReports()}>REFRESH QUEUE</button></div>
+   {reports.length? <div className="moderation-list">{reports.map(r=><article className="moderation-card" key={r.id}><div className="moderation-head"><b>{r.category.replace('_',' ').toUpperCase()}</b><span>{r.status.toUpperCase()}</span></div><p>REPORTER @{r.reporter_username} ({r.reporter_player_id})</p><p>TARGET @{r.target_username} ({r.target_player_id})</p><div className="moderation-details">{r.details||'No additional details provided.'}</div><small>{new Date(r.created_at).toLocaleString()}</small>{!['resolved','dismissed'].includes(r.status)&&<><textarea rows={2} maxLength={1000} placeholder="Internal moderator note (optional)" value={reviewNotes[r.id]||''} onChange={e=>setReviewNotes(v=>({...v,[r.id]:e.target.value}))}/><div className="player-controls">{r.status==='open'&&<button className="social-muted" disabled={busy} onClick={()=>reviewReport(r,'reviewing')}>TAKE REVIEW</button>}<button className="social-action" disabled={busy} onClick={()=>reviewReport(r,'resolved')}>RESOLVE</button><button className="social-muted danger" disabled={busy} onClick={()=>reviewReport(r,'dismissed')}>DISMISS</button></div></>}</article>)}</div>:<div className="empty-state">NO REPORTS IN THIS QUEUE.</div>}
   </div>
   {overview&&<><div className="admin-section"><div className="settings-title"><Gamepad2/><div><b>DESTINATION REGISTRY</b><span>Current catalog state from the database.</span></div></div><div className="admin-game-list">{overview.games.map(g=><div key={g.key}><b>{g.display_name}</b><span>{g.key}</span><i>{g.status}</i></div>)}</div></div>
   <div className="admin-section"><div className="settings-title"><Activity/><div><b>RECENT AUDIT EVENTS</b><span>Latest 25 recorded administrative and identity events.</span></div></div>{overview.recent_audit.length?<div className="audit-list">{overview.recent_audit.map(a=><div key={a.id}><b>{a.action}</b><span>{a.target_type||'event'} / {a.target_id||'—'}</span><small>{new Date(a.created_at).toLocaleString()}</small></div>)}</div>:<div className="empty-state">NO AUDIT EVENTS RECORDED YET.</div>}</div></>}
