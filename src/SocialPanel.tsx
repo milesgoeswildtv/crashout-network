@@ -68,6 +68,19 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
     } catch(e) {setError(e instanceof Error?e.message:'Could not open player profile.');}
     finally {setBusy(false);}
   }
+  async function friendAction(p:Player,kind:'remove'|'block') {
+    if(!supabase)return;
+    const prompt=kind==='block'?'Block @'+p.username+'? This removes the friendship and prevents future contact.':'Remove @'+p.username+' from your friends?';
+    if(!window.confirm(prompt))return;
+    setBusy(true);setError('');
+    try {
+      const {error}=await supabase.rpc(kind==='block'?'block_player':'remove_friend',{target_player_id:p.player_id});
+      if(error)throw error;
+      if(selectedProfile?.player_id===p.player_id)setSelectedProfile(null);
+      await refresh();
+    } catch(e) {setError(e instanceof Error?e.message:'Could not update friend.');}
+    finally {setBusy(false);}
+  }
   async function read(n:NotificationRow) {
     if(!supabase||n.read_at)return;
     const {error}=await supabase.rpc('mark_notification_read',{notification_id:n.id});
@@ -84,7 +97,7 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
       {results.length>0&&<><h2 className="social-heading">SEARCH RESULTS</h2><div className="player-list">{results.map(p=>playerRow(p,<div className="player-controls"><button className="social-muted" disabled={busy} onClick={()=>viewProfile(p)}>VIEW</button><button className="social-action" disabled={busy} onClick={()=>add(p)}><UserPlus size={15}/> ADD</button></div>))}</div></>}
       {requests.length>0&&<><h2 className="social-heading">INCOMING REQUESTS <small>{requests.length}</small></h2><div className="player-list">{requests.map(r=><article className="player-row" key={r.id}><div className="player-avatar"><UserRound/></div><div className="player-info"><b>{r.player?.display_name||'CRASHOUT PLAYER'}</b><span>@{r.player?.username||'unknown'} · {r.player?.player_id||''}</span></div><button className="social-action" disabled={busy} onClick={()=>respond(r.id,true)}><Check size={15}/> ACCEPT</button><button className="social-muted" disabled={busy} onClick={()=>respond(r.id,false)}>DECLINE</button></article>)}</div></>}
       <h2 className="social-heading">YOUR FRIENDS <small>{friends.length}</small></h2>
-      {friends.length?<div className="player-list">{friends.map(p=>playerRow(p,<button className="social-muted" disabled={busy} onClick={()=>viewProfile(p)}>VIEW PROFILE</button>))}</div>:<div className="empty-state">NO CONNECTIONS YET. FIND YOUR PEOPLE ABOVE.</div>}
+      {friends.length?<div className="player-list">{friends.map(p=>playerRow(p,<div className="player-controls"><button className="social-muted" disabled={busy} onClick={()=>viewProfile(p)}>VIEW</button><button className="social-muted" disabled={busy} onClick={()=>friendAction(p,'remove')}>REMOVE</button><button className="social-muted danger" disabled={busy} onClick={()=>friendAction(p,'block')}>BLOCK</button></div>))}</div>:<div className="empty-state">NO CONNECTIONS YET. FIND YOUR PEOPLE ABOVE.</div>}
     </>:<>
       {error&&<div className="auth-error">{error}</div>}
       {notifications.length?<div className="player-list">{notifications.map(n=><article className={'notification-row '+(n.read_at?'read':'unread')} key={n.id} onClick={()=>read(n)}><div className="notification-mark"><Bell size={16}/></div><div className="player-info"><b>{n.title}</b><span>{n.body}</span><small>{new Date(n.created_at).toLocaleString()}</small></div>{!n.read_at&&<i className="unread-dot"/>}</article>)}</div>:<div className="empty-state">NOTHING HERE. THE SILENCE IS TEMPORARY.</div>}
