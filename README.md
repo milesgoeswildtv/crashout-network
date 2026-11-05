@@ -17,10 +17,10 @@ Review `supabase/migrations/0001_initial.sql` before applying to a NEW Supabase 
 First administrator setup is documented in `docs/ADMIN_BOOTSTRAP.md`; the first superadministrator must be assigned through the trusted Supabase SQL Editor, never from the client.
 
 ## Migration discipline
-Apply the SQL files once, in numeric order, to a new Supabase project. Do not skip migrations or apply them out of order. Back up an existing project before introducing these schema changes.
+Apply the SQL files once, in numeric order, to a new Supabase project: `0001` through `0012` in numeric order, including `0010_achievements_progress.sql`, `0011_player_avatars.sql`, and `0012_public_profile_avatars.sql`. The CI migration checker verifies required files and selected security invariants, but does not execute SQL or replace a live database migration test. Do not skip migrations or apply them out of order. Back up an existing project before introducing these schema changes.
 
 ## Account setup
-The account screens call Supabase Auth directly. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the local environment or hosting provider. Apply every migration in order: `0001_initial.sql`, `0002_secure_player_provisioning.sql`, `0003_social_foundation.sql`, `0004_player_identity_settings.sql`, `0005_admin_foundation.sql`, `0006_public_player_profiles.sql`, and `0007_network_indexes.sql`, `0008_player_reporting_moderation.sql`, and `0009_shop_inventory.sql`. Configure Supabase email confirmation and allowed redirect URLs for the deployed origin. The database trigger provisions the profile, six-character Player ID, and default player role when an auth user is created. The client cannot set Player IDs or roles. Social actions run through authenticated database functions; direct client writes to friendship and notification tables are revoked.
+The account screens call Supabase Auth directly. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the local environment or hosting provider. Apply every migration in order: `0001_initial.sql`, `0002_secure_player_provisioning.sql`, `0003_social_foundation.sql`, `0004_player_identity_settings.sql`, `0005_admin_foundation.sql`, `0006_public_player_profiles.sql`, and `0007_network_indexes.sql`, `0008_player_reporting_moderation.sql`, and `0009_shop_inventory.sql`, and `0010_achievements_progress.sql`, and `0011_player_avatars.sql`. Configure Supabase email confirmation and allowed redirect URLs for the deployed origin. The database trigger provisions the profile, six-character Player ID, and default player role when an auth user is created. The client cannot set Player IDs or roles. Social actions run through authenticated database functions; direct client writes to friendship and notification tables are revoked.
 
 The project does not contain Supabase project credentials. Until a project is configured and migrations are applied, the interface intentionally reports that account services are not connected.
 
@@ -36,3 +36,42 @@ Products are inactive by default and must be published through the administrator
 
 
 Shop UI and catalog administration are included in the current CI validation scope; database execution still requires a configured Supabase project.
+
+
+## Achievements and verified progression
+Migration 0010 adds network- and game-scoped achievement definitions, private player progress, award records, and idempotent event ingestion. The Rankings screen now displays database-backed network counts and achievement progress. Administrators can define and publish achievements. Only trusted destination services using a server-side service-role credential may call ingest_achievement_event; browser clients cannot submit activity, edit progress, or grant awards. See docs/ACHIEVEMENT_INTEGRATION.md for the event contract. This does not create shared currencies or imply any destination integration is active. SQL still requires execution and verification in a configured Supabase project.
+
+
+## Player avatars
+Migration 0011 provisions the public-read `player-avatars` Storage bucket with a 2 MB limit and JPEG/PNG/WebP MIME allowlist. Authenticated players can upload, replace, or remove only objects under their own auth UUID folder. The account screen updates the profile avatar URL; social directory cards render it. Storage policies are not live until the migration is applied to the configured Supabase project.
+
+Migration 0012 extends the authenticated public-profile RPC to include the player's avatar URL while retaining the existing block-aware visibility rules. Public profile cards do not expose private account or contact data.
+
+## Local Supabase development and migration verification
+
+The repository includes `supabase/config.toml` so the complete backend can be brought up locally with the Supabase CLI. Install Docker Desktop and the Supabase CLI, then run:
+
+```sh
+supabase start
+supabase db reset
+supabase test db
+```
+
+This starts a local Supabase stack and applies every migration in `supabase/migrations/` to a clean database. The local API URL and anon key are printed by `supabase start`; use those values in `.env.local` to exercise the frontend locally. Local email confirmation is disabled only in this local Supabase configuration; production email confirmation and redirect URLs must be configured in the hosted Supabase project's Auth settings.
+
+Pull-request CI now starts a clean local Supabase database, runs `supabase db reset`, and executes the pgTAP security regression suite with `supabase test db` before the frontend typecheck/build. This catches PostgreSQL migration failures and verifies key database privilege boundaries, not just SQL text. It does not provision or modify a hosted Supabase project.
+
+## Hosted Supabase migration deployment
+
+Hosted deployment is deliberately manual and is not run by pull-request CI. The `.github/workflows/deploy-supabase.yml` workflow first links the configured project and previews pending migrations. It applies them only when the workflow is manually dispatched with **Apply migrations** enabled.
+
+Before using it, add these encrypted repository Actions secrets under **Settings → Secrets and variables → Actions**:
+
+- `SUPABASE_ACCESS_TOKEN`: a Supabase personal access token. Create and store it directly in GitHub; never paste it into chat or commit it.
+- `SUPABASE_DB_PASSWORD`: the database password chosen when creating this Supabase project. Store it directly in GitHub; never paste it into chat.
+- `SUPABASE_PROJECT_ID`: the project reference shown in the Supabase dashboard URL (for this project, `qcmfnkuyinhfdxnuvneb`).
+
+The workflow uses the Supabase CLI and these secrets only in the hosted runner. The browser application must use only the project's publishable key, configured as `VITE_SUPABASE_ANON_KEY` in the frontend hosting environment. Never put a secret/service-role key in a `VITE_*` variable, browser bundle, repository file, or chat.
+
+Do not run the apply option until the PR containing this workflow has been reviewed and merged, the hosted project is confirmed to be new/empty, and its credentials are stored as GitHub Actions secrets. A dry run previews changes but is not a substitute for reviewing the migration plan. This workflow does not configure Auth redirect URLs, email delivery, Storage runtime behavior, or frontend hosting.
+

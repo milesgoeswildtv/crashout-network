@@ -1,17 +1,28 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, feature/achievements-network-stats]
   pull_request:
     branches: [main]
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start local Supabase services
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector
+      - name: Apply every migration to a clean local database
+        run: supabase db reset
+      - name: Run database security regression tests
+        run: supabase test db
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm install
       - run: npm run typecheck
+      - run: npm run check:migrations
       - run: npm run build
