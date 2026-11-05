@@ -13,6 +13,7 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
   const [results,setResults]=useState<Player[]>([]);
   const [requests,setRequests]=useState<RequestRow[]>([]);
   const [friends,setFriends]=useState<Player[]>([]);
+  const [blocked,setBlocked]=useState<Player[]>([]);
   const [notifications,setNotifications]=useState<NotificationRow[]>([]);
   const [selectedProfile,setSelectedProfile]=useState<PublicProfile|null>(null);
   const [reportCategory,setReportCategory]=useState('other');
@@ -25,7 +26,7 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
     if(!supabase||!session)return;
     setBusy(true);setError('');
     try {
-      const [rq,fr,no]=await Promise.all([
+      const [rq,fr,no,bl]=await Promise.all([
         supabase.from('friendships').select('id,requester').eq('addressee',session.user.id).eq('status','pending').order('created_at',{ascending:false}),
         supabase.from('friendships').select('requester,addressee').eq('status','accepted').or('requester.eq.'+session.user.id+',addressee.eq.'+session.user.id),
         supabase.from('notifications').select('id,title,body,read_at,created_at').order('created_at',{ascending:false}).limit(30)
@@ -33,7 +34,7 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
       if(rq.error)throw rq.error;if(fr.error)throw fr.error;if(no.error)throw no.error;
       const requestRows=(rq.data||[]) as RequestRow[];
       const friendIds=[...new Set((fr.data||[]).map((r:any)=>r.requester===session.user.id?r.addressee:r.requester))];
-      const ids=[...new Set([...requestRows.map(r=>r.requester),...friendIds])];
+      const blockedIds=(bl.data||[]).map((r:any)=>r.blocked as string);\n      const ids=[...new Set([...requestRows.map(r=>r.requester),...friendIds,...blockedIds])];
       const pr=ids.length?await supabase.from('profiles').select('id,player_id,username,display_name,avatar_url').in('id',ids):{data:[],error:null};
       if(pr.error)throw pr.error;
       const map=new Map((pr.data||[]).map((p:any)=>[p.id,p]));
@@ -84,13 +85,13 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
     } catch(e) {setError(e instanceof Error?e.message:'Could not submit report.');}
     finally {setReporting(false);}
   }
-  async function friendAction(p:Player,kind:'remove'|'block') {
+  async function friendAction(p:Player,kind:'remove'|'block'|'unblock') {
     if(!supabase)return;
-    const prompt=kind==='block'?'Block @'+p.username+'? This removes the friendship and prevents future contact.':'Remove @'+p.username+' from your friends?';
+    const prompt=kind==='block'?'Block @'+p.username+'? This removes the friendship and prevents future contact.':kind==='unblock'?'Unblock @'+p.username+'? They may be able to find and contact you again.':'Remove @'+p.username+' from your friends?';
     if(!window.confirm(prompt))return;
     setBusy(true);setError('');
     try {
-      const {error}=await supabase.rpc(kind==='block'?'block_player':'remove_friend',{target_player_id:p.player_id});
+      const {error}=await supabase.rpc(kind==='block'?'block_player':kind==='unblock'?'unblock_player':'remove_friend',{target_player_id:p.player_id});
       if(error)throw error;
       if(selectedProfile?.player_id===p.player_id)setSelectedProfile(null);
       await refresh();
@@ -113,7 +114,7 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
       {results.length>0&&<><h2 className="social-heading">SEARCH RESULTS</h2><div className="player-list">{results.map(p=>playerRow(p,<div className="player-controls"><button className="social-muted" disabled={busy} onClick={()=>viewProfile(p)}>VIEW</button><button className="social-action" disabled={busy} onClick={()=>add(p)}><UserPlus size={15}/> ADD</button></div>))}</div></>}
       {requests.length>0&&<><h2 className="social-heading">INCOMING REQUESTS <small>{requests.length}</small></h2><div className="player-list">{requests.map(r=><article className="player-row" key={r.id}><div className="player-avatar"><UserRound/></div><div className="player-info"><b>{r.player?.display_name||'CRASHOUT PLAYER'}</b><span>@{r.player?.username||'unknown'} · {r.player?.player_id||''}</span></div><button className="social-action" disabled={busy} onClick={()=>respond(r.id,true)}><Check size={15}/> ACCEPT</button><button className="social-muted" disabled={busy} onClick={()=>respond(r.id,false)}>DECLINE</button></article>)}</div></>}
       <h2 className="social-heading">YOUR FRIENDS <small>{friends.length}</small></h2>
-      {friends.length?<div className="player-list">{friends.map(p=>playerRow(p,<div className="player-controls"><button className="social-muted" disabled={busy} onClick={()=>viewProfile(p)}>VIEW</button><button className="social-muted" disabled={busy} onClick={()=>friendAction(p,'remove')}>REMOVE</button><button className="social-muted danger" disabled={busy} onClick={()=>friendAction(p,'block')}>BLOCK</button></div>))}</div>:<div className="empty-state">NO CONNECTIONS YET. FIND YOUR PEOPLE ABOVE.</div>}
+      {friends.length?<div className="player-list">{friends.map(p=>playerRow(p,<div className="player-controls"><button className="social-muted" disabled={busy} onClick={()=>viewProfile(p)}>VIEW</button><button className="social-muted" disabled={busy} onClick={()=>friendAction(p,'remove')}>REMOVE</button><button className="social-muted danger" disabled={busy} onClick={()=>friendAction(p,'block')}>BLOCK</button></div>))}</div>:<div className="empty-state">NO CONNECTIONS YET. FIND YOUR PEOPLE ABOVE.</div>}\n      <h2 className="social-heading">BLOCKED PLAYERS <small>{blocked.length}</small></h2>\n      {blocked.length?<div className="player-list">{blocked.map(p=>playerRow(p,<button className="social-muted" disabled={busy} onClick={()=>friendAction(p,'unblock')}>UNBLOCK</button>))}</div>:<div className="empty-state">NO BLOCKED PLAYERS.</div>}
     </>:<>
       {error&&<div className="auth-error">{error}</div>}
       {notifications.length?<div className="player-list">{notifications.map(n=><article className={'notification-row '+(n.read_at?'read':'unread')} key={n.id} onClick={()=>read(n)}><div className="notification-mark"><Bell size={16}/></div><div className="player-info"><b>{n.title}</b><span>{n.body}</span><small>{new Date(n.created_at).toLocaleString()}</small></div>{!n.read_at&&<i className="unread-dot"/>}</article>)}</div>:<div className="empty-state">NOTHING HERE. THE SILENCE IS TEMPORARY.</div>}
