@@ -12,6 +12,7 @@ const migrations = [
   '0008_player_reporting_moderation.sql',
   '0009_shop_inventory.sql',
   '0010_achievements_progress.sql',
+  '0011_player_avatars.sql',
 ];
 for (const name of migrations) {
   const path = new URL('../supabase/migrations/' + name, import.meta.url);
@@ -33,3 +34,8 @@ for (const fragment of required) assert.ok(sql.includes(fragment), 'Missing SQL 
 assert.ok(!/grant\s+execute\s+on\s+function\s+public\.ingest_achievement_event[^;]*to\s+authenticated/i.test(sql),
   'Achievement ingestion must never be executable by authenticated browser clients');
 console.log('Migration structure and achievement trust-boundary checks passed (SQL execution is still required against Supabase).');
+
+const avatarSql = readFileSync(new URL('../supabase/migrations/0011_player_avatars.sql', import.meta.url), 'utf8');
+for (const fragment of ["values('player-avatars','player-avatars',true,2097152", "'image/jpeg','image/png','image/webp'", "storage.foldername(name))[1]=auth.uid()::text", 'players delete own avatar']) {
+  assert.ok(avatarSql.includes(fragment), 'Missing avatar storage safety invariant: ' + fragment);
+}
