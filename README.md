@@ -17,7 +17,7 @@ Review `supabase/migrations/0001_initial.sql` before applying to a NEW Supabase 
 First administrator setup is documented in `docs/ADMIN_BOOTSTRAP.md`; the first superadministrator must be assigned through the trusted Supabase SQL Editor, never from the client.
 
 ## Migration discipline
-Apply the SQL files once, in numeric order, to a new Supabase project: `0001` through `0011`, including `0010_achievements_progress.sql` and `0011_player_avatars.sql`. The CI migration checker verifies required files and selected security invariants, but does not execute SQL or replace a live database migration test. Do not skip migrations or apply them out of order. Back up an existing project before introducing these schema changes.
+Apply the SQL files once, in numeric order, to a new Supabase project: `0001` through `0011`, including `0010_achievements_progress.sql` and `0011_player_avatars.sql`, and `0012_public_profile_avatars.sql`. The CI migration checker verifies required files and selected security invariants, but does not execute SQL or replace a live database migration test. Do not skip migrations or apply them out of order. Back up an existing project before introducing these schema changes.
 
 ## Account setup
 The account screens call Supabase Auth directly. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the local environment or hosting provider. Apply every migration in order: `0001_initial.sql`, `0002_secure_player_provisioning.sql`, `0003_social_foundation.sql`, `0004_player_identity_settings.sql`, `0005_admin_foundation.sql`, `0006_public_player_profiles.sql`, and `0007_network_indexes.sql`, `0008_player_reporting_moderation.sql`, and `0009_shop_inventory.sql`, and `0010_achievements_progress.sql`, and `0011_player_avatars.sql`. Configure Supabase email confirmation and allowed redirect URLs for the deployed origin. The database trigger provisions the profile, six-character Player ID, and default player role when an auth user is created. The client cannot set Player IDs or roles. Social actions run through authenticated database functions; direct client writes to friendship and notification tables are revoked.
@@ -44,3 +44,5 @@ Migration 0010 adds network- and game-scoped achievement definitions, private pl
 
 ## Player avatars
 Migration 0011 provisions the public-read `player-avatars` Storage bucket with a 2 MB limit and JPEG/PNG/WebP MIME allowlist. Authenticated players can upload, replace, or remove only objects under their own auth UUID folder. The account screen updates the profile avatar URL; social directory cards render it. Storage policies are not live until the migration is applied to the configured Supabase project.
+
+Migration 0012 extends the authenticated public-profile RPC to include the player's avatar URL while retaining the existing block-aware visibility rules. Public profile cards do not expose private account or contact data.
