@@ -55,6 +55,7 @@ alter table public.player_inventory enable row level security;
 alter table public.shop_purchases enable row level security;
 create policy "active shop catalog is public" on public.shop_products
   for select to anon,authenticated using(active=true);
+grant select on public.shop_products to anon,authenticated;
 create policy "inventory owner reads own items" on public.player_inventory
   for select to authenticated using(user_id=auth.uid());
 create policy "purchase owner reads own receipts" on public.shop_purchases
@@ -65,7 +66,7 @@ grant select on public.player_inventory to authenticated;
 revoke all on public.shop_purchases from anon,authenticated;
 grant select on public.shop_purchases to authenticated;
 
-create or replace function public.purchase_shop_product(product_id uuid, p_quantity integer default 1)
+create or replace function public.purchase_shop_product(p_product_id uuid, p_quantity integer default 1)
 returns jsonb
 language plpgsql security definer
 set search_path = public, pg_temp
@@ -79,20 +80,20 @@ declare
   total numeric;
 begin
   if buyer is null then raise exception 'Sign in before purchasing'; end if;
-  if purchase_quantity is null or purchase_quantity < 1 or purchase_quantity > 99 then
+  if p_quantity is null or p_quantity < 1 or p_quantity > 99 then
     raise exception 'Quantity must be between 1 and 99';
   end if;
   select * into product_row from public.shop_products p
-    where p.id=product_id and p.active=true for update;
+    where p.id=p_product_id and p.active=true for update;
   if not found then raise exception 'This item is not available'; end if;
-  if product_row.stock_remaining is not null and product_row.stock_remaining < purchase_quantity then
+  if product_row.stock_remaining is not null and product_row.stock_remaining < p_quantity then
     raise exception 'Not enough stock remains';
   end if;
-  total := product_row.price::numeric * purchase_quantity;
+  total := product_row.price::numeric * p_quantity;
   if total > 9223372036854775807 then raise exception 'Purchase total is too large'; end if;
   select coalesce(sum(quantity),0) into previous_quantity from public.shop_purchases
     where user_id=buyer and shop_purchases.product_id=p_product_id;
-  if product_row.per_user_limit is not null and previous_quantity + purchase_quantity > product_row.per_user_limit then
+  if product_row.per_user_limit is not null and previous_quantity + p_quantity > product_row.per_user_limit then
     raise exception 'This purchase would exceed the per-player limit';
   end if;
   select * into wallet_row from public.game_wallets
@@ -104,24 +105,24 @@ begin
   update public.game_wallets set balance=balance-total::bigint
     where id=wallet_row.id;
   insert into public.shop_purchases(user_id,product_id,game_key,currency_code,quantity,unit_price,total_price)
-    values(buyer,product_row.id,product_row.game_key,product_row.currency_code,purchase_quantity,product_row.price,total::bigint)
+    values(buyer,product_row.id,product_row.game_key,product_row.currency_code,p_quantity,product_row.price,total::bigint)
     returning id into new_purchase;
   insert into public.wallet_ledger(wallet_id,delta,reason,idempotency_key)
     values(wallet_row.id,-(total::bigint),'shop_purchase','shop:'||new_purchase::text);
   insert into public.player_inventory(user_id,game_key,product_id,item_key,item_type,quantity,item_metadata)
-    values(buyer,product_row.game_key,product_row.id,product_row.item_key,product_row.item_type,purchase_quantity,product_row.item_metadata)
+    values(buyer,product_row.game_key,product_row.id,product_row.item_key,product_row.item_type,p_quantity,product_row.item_metadata)
     on conflict(user_id,product_id) do update
       set quantity=public.player_inventory.quantity+excluded.quantity,updated_at=now();
   if product_row.stock_remaining is not null then
-    update public.shop_products set stock_remaining=stock_remaining-purchase_quantity,updated_at=now()
+    update public.shop_products set stock_remaining=stock_remaining-p_quantity,updated_at=now()
       where id=product_row.id;
   end if;
   insert into public.audit_log(actor,action,target_type,target_id,metadata)
     values(buyer,'shop.purchase_completed','shop_purchase',new_purchase::text,
       jsonb_build_object('game_key',product_row.game_key,'sku',product_row.sku,
-        'currency_code',product_row.currency_code,'quantity',purchase_quantity,'total',total));
+        'currency_code',product_row.currency_code,'quantity',p_quantity,'total',total));
   return jsonb_build_object('purchase_id',new_purchase,'game_key',product_row.game_key,
-    'currency_code',product_row.currency_code,'quantity',purchase_quantity,'total_price',total);
+    'currency_code',product_row.currency_code,'quantity',p_quantity,'total_price',total);
 end;
 $$;
 
