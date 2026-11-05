@@ -23,7 +23,8 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   async function refresh() {
-    if(!supabase||!session)return;
+    if(!supabase)return;
+    if(!session){setRequests([]);setFriends([]);setBlocked([]);setNotifications([]);setResults([]);return;}
     setBusy(true);setError('');
     try {
       const [rq,fr,no,bl]=await Promise.all([
