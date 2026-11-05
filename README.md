@@ -46,3 +46,16 @@ Migration 0010 adds network- and game-scoped achievement definitions, private pl
 Migration 0011 provisions the public-read `player-avatars` Storage bucket with a 2 MB limit and JPEG/PNG/WebP MIME allowlist. Authenticated players can upload, replace, or remove only objects under their own auth UUID folder. The account screen updates the profile avatar URL; social directory cards render it. Storage policies are not live until the migration is applied to the configured Supabase project.
 
 Migration 0012 extends the authenticated public-profile RPC to include the player's avatar URL while retaining the existing block-aware visibility rules. Public profile cards do not expose private account or contact data.
+
+## Local Supabase development and migration verification
+
+The repository includes `supabase/config.toml` so the complete backend can be brought up locally with the Supabase CLI. Install Docker Desktop and the Supabase CLI, then run:
+
+```sh
+supabase start
+supabase db reset
+```
+
+This starts a local Supabase stack and applies every migration in `supabase/migrations/` to a clean database. The local API URL and anon key are printed by `supabase start`; use those values in `.env.local` to exercise the frontend locally. Local email confirmation is disabled only in this local Supabase configuration; production email confirmation and redirect URLs must be configured in the hosted Supabase project's Auth settings.
+
+Pull-request CI now starts a clean local Supabase database and runs `supabase db reset` before the frontend typecheck/build. This is intended to catch actual PostgreSQL migration failures, not just check SQL text. It does not provision or modify a hosted Supabase project.
