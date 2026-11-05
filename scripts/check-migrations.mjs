@@ -34,8 +34,6 @@ const required = [
 for (const fragment of required) assert.ok(sql.includes(fragment), 'Missing SQL safety invariant: ' + fragment);
 assert.ok(!/grant\s+execute\s+on\s+function\s+public\.ingest_achievement_event[^;]*to\s+authenticated/i.test(sql),
   'Achievement ingestion must never be executable by authenticated browser clients');
-console.log('Migration structure and achievement trust-boundary checks passed (SQL execution is still required against Supabase).');
-
 const avatarSql = readFileSync(new URL('../supabase/migrations/0011_player_avatars.sql', import.meta.url), 'utf8');
 for (const fragment of ["values('player-avatars','player-avatars',true,2097152", "'image/jpeg','image/png','image/webp'", "storage.foldername(name))[1]=auth.uid()::text", 'players delete own avatar']) {
   assert.ok(avatarSql.includes(fragment), 'Missing avatar storage safety invariant: ' + fragment);
@@ -44,3 +42,5 @@ for (const fragment of ["values('player-avatars','player-avatars',true,2097152",
 const publicAvatarSql = readFileSync(new URL('../supabase/migrations/0012_public_profile_avatars.sql', import.meta.url), 'utf8');
 assert.ok(publicAvatarSql.includes('avatar_url text'), 'Public profile RPC must include avatar URL');
 assert.ok(publicAvatarSql.includes('not exists(select 1 from public.user_blocks'), 'Public profile RPC must preserve block visibility checks');
+
+console.log('Migration structure, achievement trust boundaries, avatar ownership, and public-profile privacy checks passed (SQL execution is still required against Supabase).');
