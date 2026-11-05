@@ -107,7 +107,7 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
     const {error}=await supabase.rpc('mark_notification_read',{notification_id:n.id});
     if(error)setError(error.message);else setNotifications(v=>v.map(x=>x.id===n.id?{...x,read_at:new Date().toISOString()}:x));
   }
-  const playerRow=(p:Player,action?:ReactNode)=><article className="player-row" key={p.player_id}><div className="player-avatar"><UserRound/></div><div className="player-info"><b>{p.display_name}</b><span>@{p.username} · {p.player_id}</span></div>{action}</article>;
+  const playerRow=(p:Player,action?:ReactNode)=><article className="player-row" key={p.player_id}><div className="player-avatar">{p.avatar_url?<img src={p.avatar_url} alt="" loading="lazy"/>:<UserRound/>}</div><div className="player-info"><b>{p.display_name}</b><span>@{p.username} · {p.player_id}</span></div>{action}</article>;
   return <section className="social-page">
     <div className="eyebrow">NETWORK / {mode==='PLAYERS'?'PLAYER DIRECTORY':'INBOX'}</div>
     <h1>{mode==='PLAYERS'?<>FIND YOUR <em>PEOPLE.</em></>:<>YOUR <em>INBOX.</em></>}</h1>
