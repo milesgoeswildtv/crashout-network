@@ -185,7 +185,7 @@ grant execute on function public.admin_save_shop_product(uuid,public.game_key,te
 create or replace function public.admin_list_shop_products()
 returns table(
   id uuid, game_key public.game_key, sku text, name text, description text,
-  currency_code text, price bigint, item_type text, item_key text,
+  currency_code text, price bigint, item_type text, item_key text, item_metadata jsonb,
   stock_remaining bigint, per_user_limit integer, active boolean
 )
 language plpgsql stable security definer
@@ -196,7 +196,7 @@ begin
     raise exception 'Administrator access required';
   end if;
   return query select p.id,p.game_key,p.sku,p.name,p.description,p.currency_code,
-    p.price,p.item_type,p.item_key,p.stock_remaining,p.per_user_limit,p.active
+    p.price,p.item_type,p.item_key,p.item_metadata,p.stock_remaining,p.per_user_limit,p.active
     from public.shop_products p order by p.game_key,p.created_at desc;
 end;
 $$;
