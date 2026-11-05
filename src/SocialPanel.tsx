@@ -31,7 +31,7 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
         supabase.from('friendships').select('requester,addressee').eq('status','accepted').or('requester.eq.'+session.user.id+',addressee.eq.'+session.user.id),
         supabase.from('notifications').select('id,title,body,read_at,created_at').order('created_at',{ascending:false}).limit(30)
       ]);
-      if(rq.error)throw rq.error;if(fr.error)throw fr.error;if(no.error)throw no.error;
+      if(rq.error)throw rq.error;if(fr.error)throw fr.error;if(no.error)throw no.error;if(bl.error)throw bl.error;
       const requestRows=(rq.data||[]) as RequestRow[];
       const friendIds=[...new Set((fr.data||[]).map((r:any)=>r.requester===session.user.id?r.addressee:r.requester))];
       const blockedIds=(bl.data||[]).map((r:any)=>r.blocked as string);\n      const ids=[...new Set([...requestRows.map(r=>r.requester),...friendIds,...blockedIds])];
