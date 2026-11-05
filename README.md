@@ -54,8 +54,9 @@ The repository includes `supabase/config.toml` so the complete backend can be br
 ```sh
 supabase start
 supabase db reset
+supabase test db
 ```
 
 This starts a local Supabase stack and applies every migration in `supabase/migrations/` to a clean database. The local API URL and anon key are printed by `supabase start`; use those values in `.env.local` to exercise the frontend locally. Local email confirmation is disabled only in this local Supabase configuration; production email confirmation and redirect URLs must be configured in the hosted Supabase project's Auth settings.
 
-Pull-request CI now starts a clean local Supabase database and runs `supabase db reset` before the frontend typecheck/build. This is intended to catch actual PostgreSQL migration failures, not just check SQL text. It does not provision or modify a hosted Supabase project.
+Pull-request CI now starts a clean local Supabase database, runs `supabase db reset`, and executes the pgTAP security regression suite with `supabase test db` before the frontend typecheck/build. This catches PostgreSQL migration failures and verifies key database privilege boundaries, not just SQL text. It does not provision or modify a hosted Supabase project.
