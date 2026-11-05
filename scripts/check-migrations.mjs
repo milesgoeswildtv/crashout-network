@@ -26,7 +26,7 @@ const required = [
   'revoke all on public.achievement_progress,public.achievement_events,public.player_achievements from anon,authenticated',
   'grant execute on function public.ingest_achievement_event(uuid,public.game_key,text,text,bigint) to service_role',
   'revoke all on function public.ingest_achievement_event(uuid,public.game_key,text,text,bigint) from public,anon,authenticated',
-  "coalesce(game_key::text,'network')",
+  'nulls not distinct',
   'on conflict do nothing returning id into inserted_id',
   'public.admin_save_achievement',
   'public.get_network_progress',
