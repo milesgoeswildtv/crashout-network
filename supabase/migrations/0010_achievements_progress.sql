@@ -26,8 +26,8 @@ create table public.achievement_events (
  user_id uuid not null references auth.users(id) on delete cascade,
  game_key public.game_key,event_code text not null check(event_code ~ '^[a-z0-9][a-z0-9_.-]{1,63}$'),
  source_event_id text not null check(char_length(source_event_id) between 1 and 160),
- amount bigint not null check(amount>0 and amount<=1000000),created_at timestamptz not null default now(),
- );
+ amount bigint not null check(amount>0 and amount<=1000000),created_at timestamptz not null default now()
+);
 create unique index achievement_events_source_dedupe_idx on public.achievement_events((coalesce(game_key::text,'network')),event_code,source_event_id);
 create index achievement_events_user_idx on public.achievement_events(user_id,created_at desc);
 create table public.player_achievements (
@@ -85,7 +85,7 @@ begin
  if not exists(select 1 from auth.users where id=p_user_id) then raise exception 'Player not found'; end if;
  insert into public.achievement_events(user_id,game_key,event_code,source_event_id,amount)
  values(p_user_id,p_game_key,p_event_code,p_source_event_id,p_amount)
- on conflict(game_key,event_code,source_event_id) do nothing returning id into inserted_id;
+ on conflict do nothing returning id into inserted_id;
  if inserted_id is null then return jsonb_build_object('accepted',false,'duplicate',true,'awarded',0); end if;
  insert into public.achievement_progress(user_id,achievement_id,progress_count)
  select p_user_id,d.id,least(p_amount,d.target_count) from public.achievement_definitions d
