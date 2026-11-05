@@ -27,8 +27,8 @@ create table public.achievement_events (
  game_key public.game_key,event_code text not null check(event_code ~ '^[a-z0-9][a-z0-9_.-]{1,63}$'),
  source_event_id text not null check(char_length(source_event_id) between 1 and 160),
  amount bigint not null check(amount>0 and amount<=1000000),created_at timestamptz not null default now(),
- unique(game_key,event_code,source_event_id)
-);
+ );
+create unique index achievement_events_source_dedupe_idx on public.achievement_events((coalesce(game_key::text,'network')),event_code,source_event_id);
 create index achievement_events_user_idx on public.achievement_events(user_id,created_at desc);
 create table public.player_achievements (
  user_id uuid not null references auth.users(id) on delete cascade,
