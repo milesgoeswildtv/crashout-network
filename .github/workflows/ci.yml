@@ -17,6 +17,8 @@ jobs:
         run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector
       - name: Apply every migration to a clean local database
         run: supabase db reset
+      - name: Run database security regression tests
+        run: supabase test db
       - uses: actions/setup-node@v4
         with:
           node-version: 20
