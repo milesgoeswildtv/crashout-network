@@ -33,3 +33,6 @@ Migration `0008_player_reporting_moderation.sql` adds authenticated player repor
 Migration `0009_shop_inventory.sql` adds per-game product catalogs, private player inventory, purchase receipts, and a server-side purchase function. Every product belongs to exactly one game and one currency code. The purchase function locks the product and wallet, checks stock and per-player limits, debits only the matching game's wallet, records a ledger entry and receipt, and grants inventory in one database transaction. A failure rolls back the entire purchase. Players cannot write balances, ledger entries, product records, receipts, or inventory directly.
 
 Products are inactive by default and must be published through the administrator-only `admin_save_shop_product` function. Purchases intentionally fail when a player has no wallet provisioned for that exact game/currency pair; this migration does not mint currency or create balances. No currency exchange or cross-game transfers exist. Inventory is currently an ownership record; game-specific equip, consume, or redemption actions must be implemented by the owning destination rather than assumed by the hub.
+
+
+Shop UI and catalog administration are included in the current CI validation scope; database execution still requires a configured Supabase project.
