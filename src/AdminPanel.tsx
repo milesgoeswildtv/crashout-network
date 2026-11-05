@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Activity, Search, Shield, Users, Bell, Gamepad2, RefreshCw } from 'lucide-react';
+import { Activity, Search, Shield, Users, Bell, Gamepad2, RefreshCw, ShoppingBag } from 'lucide-react';
 import { supabase } from './lib';
 
 type Role='player'|'moderator'|'admin'|'superadmin';
@@ -116,6 +116,23 @@ export default function AdminPanel({role}:{role:Role}) {
    <div className="report-toolbar"><label>QUEUE<select value={reportFilter} onChange={e=>{setReportFilter(e.target.value);loadReports(e.target.value)}}><option value="open">OPEN</option><option value="reviewing">IN REVIEW</option><option value="resolved">RESOLVED</option><option value="dismissed">DISMISSED</option><option value="all">ALL REPORTS</option></select></label><button className="social-muted" disabled={busy} onClick={()=>loadReports()}>REFRESH QUEUE</button></div>
    {reports.length? <div className="moderation-list">{reports.map(r=><article className="moderation-card" key={r.id}><div className="moderation-head"><b>{r.category.replace('_',' ').toUpperCase()}</b><span>{r.status.toUpperCase()}</span></div><p>REPORTER @{r.reporter_username} ({r.reporter_player_id})</p><p>TARGET @{r.target_username} ({r.target_player_id})</p><div className="moderation-details">{r.details||'No additional details provided.'}</div><small>{new Date(r.created_at).toLocaleString()}</small>{!['resolved','dismissed'].includes(r.status)&&<><textarea rows={2} maxLength={1000} placeholder="Internal moderator note (optional)" value={reviewNotes[r.id]||''} onChange={e=>setReviewNotes(v=>({...v,[r.id]:e.target.value}))}/><div className="player-controls">{r.status==='open'&&<button className="social-muted" disabled={busy} onClick={()=>reviewReport(r,'reviewing')}>TAKE REVIEW</button>}<button className="social-action" disabled={busy} onClick={()=>reviewReport(r,'resolved')}>RESOLVE</button><button className="social-muted danger" disabled={busy} onClick={()=>reviewReport(r,'dismissed')}>DISMISS</button></div></>}</article>)}</div>:<div className="empty-state">NO REPORTS IN THIS QUEUE.</div>}
   </div>
+  {(role==='admin'||role==='superadmin')&&<div className="admin-section"><div className="settings-title"><ShoppingBag/><div><b>SHOP CATALOG CONTROL</b><span>Publish products into one destination and one currency only. No wallet funding controls here.</span></div></div>
+   <form className="shop-admin-form" onSubmit={saveShopProduct}>
+    <label>DESTINATION<select value={shopForm.game} onChange={e=>setShopForm(v=>({...v,game:e.target.value}))}>{['shyst','poker','realms','rituals','degen','mmo'].map(g=><option key={g} value={g}>{g.toUpperCase()}</option>)}</select></label>
+    <label>SKU<input required minLength={2} maxLength={48} pattern="[A-Za-z0-9][A-Za-z0-9_-]+" value={shopForm.sku} onChange={e=>setShopForm(v=>({...v,sku:e.target.value.toUpperCase()}))}/></label>
+    <label>DISPLAY NAME<input required maxLength={80} value={shopForm.name} onChange={e=>setShopForm(v=>({...v,name:e.target.value}))}/></label>
+    <label>DESCRIPTION<input maxLength={500} value={shopForm.description} onChange={e=>setShopForm(v=>({...v,description:e.target.value}))}/></label>
+    <label>CURRENCY CODE<input required minLength={2} maxLength={16} pattern="[A-Za-z0-9_]+" value={shopForm.currency} onChange={e=>setShopForm(v=>({...v,currency:e.target.value.toUpperCase()}))}/></label>
+    <label>PRICE<input required type="number" min="1" step="1" value={shopForm.price} onChange={e=>setShopForm(v=>({...v,price:e.target.value}))}/></label>
+    <label>ITEM TYPE<select value={shopForm.itemType} onChange={e=>setShopForm(v=>({...v,itemType:e.target.value}))}>{['cosmetic','consumable','unlock','bundle','other'].map(x=><option key={x}>{x}</option>)}</select></label>
+    <label>ITEM KEY<input required maxLength={80} value={shopForm.itemKey} onChange={e=>setShopForm(v=>({...v,itemKey:e.target.value}))}/></label>
+    <label>STOCK LIMIT<input type="number" min="0" step="1" placeholder="Blank = unlimited" value={shopForm.stock} onChange={e=>setShopForm(v=>({...v,stock:e.target.value}))}/></label>
+    <label>PER-PLAYER LIMIT<input type="number" min="1" step="1" placeholder="Blank = unlimited" value={shopForm.limit} onChange={e=>setShopForm(v=>({...v,limit:e.target.value}))}/></label>
+    <label className="shop-admin-check"><input type="checkbox" checked={shopForm.active} onChange={e=>setShopForm(v=>({...v,active:e.target.checked}))}/> PUBLISH IMMEDIATELY</label>
+    <button className="primary" disabled={busy}>SAVE PRODUCT</button>
+   </form>
+   <div className="shop-admin-list">{shopProducts.map(p=><article key={p.id}><div><b>{p.name}</b><span>{p.game_key.toUpperCase()} / {p.sku} / {p.price} {p.currency_code}</span></div><button className={p.active?'social-muted danger':'social-action'} disabled={busy} onClick={()=>toggleShopProduct(p)}>{p.active?'DEACTIVATE':'PUBLISH'}</button></article>)}</div>
+  </div>}
   {overview&&<><div className="admin-section"><div className="settings-title"><Gamepad2/><div><b>DESTINATION REGISTRY</b><span>Current catalog state from the database.</span></div></div><div className="admin-game-list">{overview.games.map(g=><div key={g.key}><b>{g.display_name}</b><span>{g.key}</span><i>{g.status}</i></div>)}</div></div>
   <div className="admin-section"><div className="settings-title"><Activity/><div><b>RECENT AUDIT EVENTS</b><span>Latest 25 recorded administrative and identity events.</span></div></div>{overview.recent_audit.length?<div className="audit-list">{overview.recent_audit.map(a=><div key={a.id}><b>{a.action}</b><span>{a.target_type||'event'} / {a.target_id||'—'}</span><small>{new Date(a.created_at).toLocaleString()}</small></div>)}</div>:<div className="empty-state">NO AUDIT EVENTS RECORDED YET.</div>}</div></>}
  </section>;
