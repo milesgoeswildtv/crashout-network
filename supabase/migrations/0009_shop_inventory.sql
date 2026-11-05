@@ -65,7 +65,7 @@ grant select on public.player_inventory to authenticated;
 revoke all on public.shop_purchases from anon,authenticated;
 grant select on public.shop_purchases to authenticated;
 
-create or replace function public.purchase_shop_product(product_id uuid, purchase_quantity integer default 1)
+create or replace function public.purchase_shop_product(product_id uuid, p_quantity integer default 1)
 returns jsonb
 language plpgsql security definer
 set search_path = public, pg_temp
@@ -91,7 +91,7 @@ begin
   total := product_row.price::numeric * purchase_quantity;
   if total > 9223372036854775807 then raise exception 'Purchase total is too large'; end if;
   select coalesce(sum(quantity),0) into previous_quantity from public.shop_purchases
-    where user_id=buyer and shop_purchases.product_id=purchase_shop_product.product_id;
+    where user_id=buyer and shop_purchases.product_id=p_product_id;
   if product_row.per_user_limit is not null and previous_quantity + purchase_quantity > product_row.per_user_limit then
     raise exception 'This purchase would exceed the per-player limit';
   end if;
