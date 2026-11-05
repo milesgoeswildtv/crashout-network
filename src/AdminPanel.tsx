@@ -5,7 +5,7 @@ import { supabase } from './lib';
 type Role='player'|'moderator'|'admin'|'superadmin';
 type AdminPlayer={player_id:string;username:string;display_name:string;role:Role;created_at:string};
 type Overview={players:number;pending_friend_requests:number;unread_notifications:number;games:{key:string;display_name:string;status:string}[];recent_audit:{id:number;actor:string|null;action:string;target_type:string|null;target_id:string|null;created_at:string}[]};
-type ShopProduct={id:string;game_key:'shyst'|'poker'|'realms'|'rituals'|'degen'|'mmo';sku:string;name:string;description:string;currency_code:string;price:number;item_type:string;item_key:string;stock_remaining:number|null;per_user_limit:number|null;active:boolean};
+type ShopProduct={id:string;game_key:'shyst'|'poker'|'realms'|'rituals'|'degen'|'mmo';sku:string;name:string;description:string;currency_code:string;price:number;item_type:string;item_key:string;item_metadata:Record<string,unknown>;stock_remaining:number|null;per_user_limit:number|null;active:boolean};
 type Report={id:string;category:string;details:string;status:string;moderator_note:string;created_at:string;reporter_player_id:string;reporter_username:string;target_player_id:string;target_username:string};
 export default function AdminPanel({role}:{role:Role}) {
  const [overview,setOverview]=useState<Overview|null>(null);
@@ -64,7 +64,7 @@ export default function AdminPanel({role}:{role:Role}) {
    const {error}=await supabase.rpc('admin_save_shop_product',{
     product_id:p.id,game:p.game_key,product_sku:p.sku,product_name:p.name,
     product_description:p.description,product_currency:p.currency_code,product_price:p.price,
-    product_item_type:p.item_type,product_item_key:p.item_key,product_metadata:{},
+    product_item_type:p.item_type,product_item_key:p.item_key,product_metadata:p.item_metadata,
     product_stock:p.stock_remaining,product_limit:p.per_user_limit,product_active:!p.active
    });
    if(error)throw error;
