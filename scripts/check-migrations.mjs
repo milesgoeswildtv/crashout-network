@@ -13,6 +13,7 @@ const migrations = [
   '0009_shop_inventory.sql',
   '0010_achievements_progress.sql',
   '0011_player_avatars.sql',
+  '0012_public_profile_avatars.sql',
 ];
 for (const name of migrations) {
   const path = new URL('../supabase/migrations/' + name, import.meta.url);
@@ -39,3 +40,7 @@ const avatarSql = readFileSync(new URL('../supabase/migrations/0011_player_avata
 for (const fragment of ["values('player-avatars','player-avatars',true,2097152", "'image/jpeg','image/png','image/webp'", "storage.foldername(name))[1]=auth.uid()::text", 'players delete own avatar']) {
   assert.ok(avatarSql.includes(fragment), 'Missing avatar storage safety invariant: ' + fragment);
 }
+
+const publicAvatarSql = readFileSync(new URL('../supabase/migrations/0012_public_profile_avatars.sql', import.meta.url), 'utf8');
+assert.ok(publicAvatarSql.includes('avatar_url text'), 'Public profile RPC must include avatar URL');
+assert.ok(publicAvatarSql.includes('not exists(select 1 from public.user_blocks'), 'Public profile RPC must preserve block visibility checks');
