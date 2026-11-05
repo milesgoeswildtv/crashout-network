@@ -60,3 +60,18 @@ supabase test db
 This starts a local Supabase stack and applies every migration in `supabase/migrations/` to a clean database. The local API URL and anon key are printed by `supabase start`; use those values in `.env.local` to exercise the frontend locally. Local email confirmation is disabled only in this local Supabase configuration; production email confirmation and redirect URLs must be configured in the hosted Supabase project's Auth settings.
 
 Pull-request CI now starts a clean local Supabase database, runs `supabase db reset`, and executes the pgTAP security regression suite with `supabase test db` before the frontend typecheck/build. This catches PostgreSQL migration failures and verifies key database privilege boundaries, not just SQL text. It does not provision or modify a hosted Supabase project.
+
+## Hosted Supabase migration deployment
+
+Hosted deployment is deliberately manual and is not run by pull-request CI. The `.github/workflows/deploy-supabase.yml` workflow first links the configured project and previews pending migrations. It applies them only when the workflow is manually dispatched with **Apply migrations** enabled.
+
+Before using it, add these encrypted repository Actions secrets under **Settings → Secrets and variables → Actions**:
+
+- `SUPABASE_ACCESS_TOKEN`: a Supabase personal access token. Create and store it directly in GitHub; never paste it into chat or commit it.
+- `SUPABASE_DB_PASSWORD`: the database password chosen when creating this Supabase project. Store it directly in GitHub; never paste it into chat.
+- `SUPABASE_PROJECT_ID`: the project reference shown in the Supabase dashboard URL (for this project, `qcmfnkuyinhfdxnuvneb`).
+
+The workflow uses the Supabase CLI and these secrets only in the hosted runner. The browser application must use only the project's publishable key, configured as `VITE_SUPABASE_ANON_KEY` in the frontend hosting environment. Never put a secret/service-role key in a `VITE_*` variable, browser bundle, repository file, or chat.
+
+Do not run the apply option until the PR containing this workflow has been reviewed and merged, the hosted project is confirmed to be new/empty, and its credentials are stored as GitHub Actions secrets. A dry run previews changes but is not a substitute for reviewing the migration plan. This workflow does not configure Auth redirect URLs, email delivery, Storage runtime behavior, or frontend hosting.
+
