@@ -13,7 +13,7 @@ Arguments:
 - p_source_event_id: immutable ID for the source game's completed match, session, or event. Reuse this exact ID on retries.
 - p_amount: positive increment, capped at 1,000,000 per event.
 
-The database deduplicates (game_key, event_code, source_event_id), then updates only active matching definitions and awards an achievement when its target is reached. Replayed events do not increment progress. A destination must not send events until it can securely map its authenticated player to the hub user. Do not guess external IDs or invent integration endpoints.
+The database deduplicates (player, game_key, event_code, source_event_id), then updates only active matching definitions and awards an achievement when its target is reached. Replayed events do not increment progress. A destination must not send events until it can securely map its authenticated player to the hub user. Do not guess external IDs or invent integration endpoints.
 
 ## Scope and economy isolation
 Game achievements match only the corresponding game_key. Network achievements are separate definitions with NULL game key and can be driven only by explicitly network-scoped trusted events. This system does not award currency, alter game wallets, or share inventories.
