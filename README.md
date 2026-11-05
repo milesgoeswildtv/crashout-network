@@ -20,7 +20,7 @@ First administrator setup is documented in `docs/ADMIN_BOOTSTRAP.md`; the first 
 Apply the SQL files once, in numeric order, to a new Supabase project. Do not skip migrations or apply them out of order. Back up an existing project before introducing these schema changes.
 
 ## Account setup
-The account screens call Supabase Auth directly. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the local environment or hosting provider. Apply every migration in order: `0001_initial.sql`, `0002_secure_player_provisioning.sql`, `0003_social_foundation.sql`, `0004_player_identity_settings.sql`, `0005_admin_foundation.sql`, `0006_public_player_profiles.sql`, and `0007_network_indexes.sql`, `0008_player_reporting_moderation.sql`, and `0009_shop_inventory.sql`. Configure Supabase email confirmation and allowed redirect URLs for the deployed origin. The database trigger provisions the profile, six-character Player ID, and default player role when an auth user is created. The client cannot set Player IDs or roles. Social actions run through authenticated database functions; direct client writes to friendship and notification tables are revoked.
+The account screens call Supabase Auth directly. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the local environment or hosting provider. Apply every migration in order: `0001_initial.sql`, `0002_secure_player_provisioning.sql`, `0003_social_foundation.sql`, `0004_player_identity_settings.sql`, `0005_admin_foundation.sql`, `0006_public_player_profiles.sql`, and `0007_network_indexes.sql`, `0008_player_reporting_moderation.sql`, and `0009_shop_inventory.sql`, and `0010_achievements_progress.sql`. Configure Supabase email confirmation and allowed redirect URLs for the deployed origin. The database trigger provisions the profile, six-character Player ID, and default player role when an auth user is created. The client cannot set Player IDs or roles. Social actions run through authenticated database functions; direct client writes to friendship and notification tables are revoked.
 
 The project does not contain Supabase project credentials. Until a project is configured and migrations are applied, the interface intentionally reports that account services are not connected.
 
@@ -36,3 +36,7 @@ Products are inactive by default and must be published through the administrator
 
 
 Shop UI and catalog administration are included in the current CI validation scope; database execution still requires a configured Supabase project.
+
+
+## Achievements and verified progression
+Migration 0010 adds network- and game-scoped achievement definitions, private player progress, award records, and idempotent event ingestion. The Rankings screen now displays database-backed network counts and achievement progress. Administrators can define and publish achievements. Only trusted destination services using a server-side service-role credential may call ingest_achievement_event; browser clients cannot submit activity, edit progress, or grant awards. See docs/ACHIEVEMENT_INTEGRATION.md for the event contract. This does not create shared currencies or imply any destination integration is active. SQL still requires execution and verification in a configured Supabase project.
