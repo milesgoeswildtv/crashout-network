@@ -5,6 +5,7 @@ import { supabase } from './lib';
 type Role='player'|'moderator'|'admin'|'superadmin';
 type AdminPlayer={player_id:string;username:string;display_name:string;role:Role;created_at:string};
 type Overview={players:number;pending_friend_requests:number;unread_notifications:number;games:{key:string;display_name:string;status:string}[];recent_audit:{id:number;actor:string|null;action:string;target_type:string|null;target_id:string|null;created_at:string}[]};
+type ShopProduct={id:string;game_key:'shyst'|'poker'|'realms'|'rituals'|'degen'|'mmo';sku:string;name:string;description:string;currency_code:string;price:number;item_type:string;item_key:string;stock_remaining:number|null;per_user_limit:number|null;active:boolean};
 type Report={id:string;category:string;details:string;status:string;moderator_note:string;created_at:string;reporter_player_id:string;reporter_username:string;target_player_id:string;target_username:string};
 export default function AdminPanel({role}:{role:Role}) {
  const [overview,setOverview]=useState<Overview|null>(null);
@@ -16,6 +17,8 @@ export default function AdminPanel({role}:{role:Role}) {
  const [reports,setReports]=useState<Report[]>([]);
  const [reportFilter,setReportFilter]=useState('open');
  const [reviewNotes,setReviewNotes]=useState<Record<string,string>>({});
+ const [shopProducts,setShopProducts]=useState<ShopProduct[]>([]);
+ const [shopForm,setShopForm]=useState({game:'shyst',sku:'',name:'',description:'',currency:'',price:'',itemType:'cosmetic',itemKey:'',stock:'',limit:'',active:false});
  async function load(){
   if(!supabase)return;setBusy(true);setError('');
   try{const {data,error}=await supabase.rpc('admin_network_overview');if(error)throw error;setOverview(data as Overview);}
@@ -28,6 +31,48 @@ export default function AdminPanel({role}:{role:Role}) {
   catch(e){setError(e instanceof Error?e.message:'Could not load moderation queue.');}
   finally{setBusy(false);}
  }
+ async function loadShopProducts(){
+  if(!supabase)return;
+  const {data,error}=await supabase.rpc('admin_list_shop_products');
+  if(error){setError(error.message);return;}
+  setShopProducts((data||[]) as ShopProduct[]);
+ }
+ async function saveShopProduct(e:FormEvent){
+  e.preventDefault();if(!supabase)return;
+  setBusy(true);setError('');setMessage('');
+  try{
+   const {error}=await supabase.rpc('admin_save_shop_product',{
+    product_id:null,game:shopForm.game,product_sku:shopForm.sku.trim().toUpperCase(),
+    product_name:shopForm.name.trim(),product_description:shopForm.description,
+    product_currency:shopForm.currency.trim().toUpperCase(),product_price:Number(shopForm.price),
+    product_item_type:shopForm.itemType,product_item_key:shopForm.itemKey.trim(),
+    product_metadata:{},product_stock:shopForm.stock===''?null:Number(shopForm.stock),
+    product_limit:shopForm.limit===''?null:Number(shopForm.limit),product_active:shopForm.active
+   });
+   if(error)throw error;
+   setMessage('Shop product saved.');
+   setShopForm(v=>({...v,sku:'',name:'',description:'',price:'',itemKey:'',stock:'',limit:''}));
+   await loadShopProducts();
+  }catch(e){setError(e instanceof Error?e.message:'Could not save shop product.');}
+  finally{setBusy(false);}
+ }
+ async function toggleShopProduct(p:ShopProduct){
+  if(!supabase)return;
+  if(!window.confirm((p.active?'Deactivate ':'Publish ')+p.name+'?'))return;
+  setBusy(true);setError('');
+  try{
+   const {error}=await supabase.rpc('admin_save_shop_product',{
+    product_id:p.id,game:p.game_key,product_sku:p.sku,product_name:p.name,
+    product_description:p.description,product_currency:p.currency_code,product_price:p.price,
+    product_item_type:p.item_type,product_item_key:p.item_key,product_metadata:{},
+    product_stock:p.stock_remaining,product_limit:p.per_user_limit,product_active:!p.active
+   });
+   if(error)throw error;
+   setMessage('Catalog visibility updated.');
+   await loadShopProducts();
+  }catch(e){setError(e instanceof Error?e.message:'Could not update product.');}
+  finally{setBusy(false);}
+ }
  async function reviewReport(report:Report,decision:'reviewing'|'resolved'|'dismissed'){
   if(!supabase)return;
   const note=reviewNotes[report.id]||'';
@@ -37,7 +82,7 @@ export default function AdminPanel({role}:{role:Role}) {
   catch(e){setError(e instanceof Error?e.message:'Moderation action failed.');}
   finally{setBusy(false);}
  }
- useEffect(()=>{load();loadReports('open');},[]);
+ useEffect(()=>{load();loadReports('open');if(role==='admin'||role==='superadmin')loadShopProducts();},[]);
  async function search(e?:FormEvent){
   e?.preventDefault();if(!supabase)return;setBusy(true);setError('');
   try{const {data,error}=await supabase.rpc('admin_find_players',{search_text:term.trim()});if(error)throw error;setPlayers((data||[]) as AdminPlayer[]);}
