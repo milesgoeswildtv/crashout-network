@@ -180,3 +180,25 @@ revoke all on function public.purchase_shop_product(uuid,integer) from public,an
 revoke all on function public.admin_save_shop_product(uuid,public.game_key,text,text,text,text,bigint,text,text,jsonb,bigint,integer,boolean) from public,anon;
 grant execute on function public.purchase_shop_product(uuid,integer) to authenticated;
 grant execute on function public.admin_save_shop_product(uuid,public.game_key,text,text,text,text,bigint,text,text,jsonb,bigint,integer,boolean) to authenticated;
+
+
+create or replace function public.admin_list_shop_products()
+returns table(
+  id uuid, game_key public.game_key, sku text, name text, description text,
+  currency_code text, price bigint, item_type text, item_key text,
+  stock_remaining bigint, per_user_limit integer, active boolean
+)
+language plpgsql stable security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.uid() is null or not public.is_admin() then
+    raise exception 'Administrator access required';
+  end if;
+  return query select p.id,p.game_key,p.sku,p.name,p.description,p.currency_code,
+    p.price,p.item_type,p.item_key,p.stock_remaining,p.per_user_limit,p.active
+    from public.shop_products p order by p.game_key,p.created_at desc;
+end;
+$$;
+revoke all on function public.admin_list_shop_products() from public,anon;
+grant execute on function public.admin_list_shop_products() to authenticated;
