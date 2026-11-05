@@ -29,17 +29,20 @@ export default function SocialPanel({session,mode}:{session:Session|null;mode:'P
       const [rq,fr,no,bl]=await Promise.all([
         supabase.from('friendships').select('id,requester').eq('addressee',session.user.id).eq('status','pending').order('created_at',{ascending:false}),
         supabase.from('friendships').select('requester,addressee').eq('status','accepted').or('requester.eq.'+session.user.id+',addressee.eq.'+session.user.id),
-        supabase.from('notifications').select('id,title,body,read_at,created_at').order('created_at',{ascending:false}).limit(30)
+        supabase.from('notifications').select('id,title,body,read_at,created_at').order('created_at',{ascending:false}).limit(30),
+        supabase.from('user_blocks').select('blocked').order('created_at',{ascending:false})
       ]);
       if(rq.error)throw rq.error;if(fr.error)throw fr.error;if(no.error)throw no.error;if(bl.error)throw bl.error;
       const requestRows=(rq.data||[]) as RequestRow[];
       const friendIds=[...new Set((fr.data||[]).map((r:any)=>r.requester===session.user.id?r.addressee:r.requester))];
-      const blockedIds=(bl.data||[]).map((r:any)=>r.blocked as string);\n      const ids=[...new Set([...requestRows.map(r=>r.requester),...friendIds,...blockedIds])];
+      const blockedIds=(bl.data||[]).map((r:any)=>r.blocked as string);
+      const ids=[...new Set([...requestRows.map(r=>r.requester),...friendIds,...blockedIds])];
       const pr=ids.length?await supabase.from('profiles').select('id,player_id,username,display_name,avatar_url').in('id',ids):{data:[],error:null};
       if(pr.error)throw pr.error;
       const map=new Map((pr.data||[]).map((p:any)=>[p.id,p]));
       setRequests(requestRows.map(r=>({...r,player:map.get(r.requester)})));
       setFriends(friendIds.map(id=>map.get(id)).filter(Boolean) as Player[]);
+      setBlocked(blockedIds.map(id=>map.get(id)).filter(Boolean) as Player[]);
       setNotifications((no.data||[]) as NotificationRow[]);
     } catch(e) { setError(e instanceof Error?e.message:'Could not load network data.'); }
     finally { setBusy(false); }
