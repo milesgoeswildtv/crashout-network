@@ -28,3 +28,8 @@
 
 /* Identity and destination connection surfaces */
 .connection-list{display:grid;gap:0;margin-top:16px}.connection-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-top:1px solid var(--line,rgba(255,255,255,.1))}.connection-row>span{display:grid;gap:5px;min-width:0}.connection-row b{font-size:12px;letter-spacing:.08em}.connection-row small{font-size:11px;color:var(--muted,#929292);overflow-wrap:anywhere}.connection-status,.connection-pending{font-size:9px;letter-spacing:.1em;white-space:nowrap}.connection-status{color:#d8ff3e}.connection-pending{color:#999}.settings-note{margin:14px 0 0;color:var(--muted,#929292);font-size:11px;line-height:1.6}.connection-row .social-action{padding:9px 12px;font-size:10px;white-space:nowrap}
+
+
+/* Registry-driven destination availability */
+.enter:disabled{opacity:.58;cursor:not-allowed;filter:saturate(.55)}
+.enter:disabled:hover{transform:none}
