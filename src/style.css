@@ -24,3 +24,7 @@
 .player-avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}.avatar-settings{max-width:680px}.avatar-upload{display:flex;align-items:center;gap:12px;padding:12px;border:1px dashed #555548;color:var(--acid);font:9px 'DM Mono';cursor:pointer}.avatar-upload input{max-width:100%;color:#aaa;font:10px 'DM Sans'}.avatar-remove{margin-top:10px;display:inline-flex;align-items:center;gap:8px}
 
 .nav-unread{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;margin-left:auto;border-radius:10px;background:var(--acid);color:#101010;font:800 9px 'DM Mono'}.nav-item .nav-arrow{margin-left:auto}.nav-item .nav-unread+.nav-arrow{margin-left:2px}.user-avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+
+
+/* Identity and destination connection surfaces */
+.connection-list{display:grid;gap:0;margin-top:16px}.connection-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-top:1px solid var(--line,rgba(255,255,255,.1))}.connection-row>span{display:grid;gap:5px;min-width:0}.connection-row b{font-size:12px;letter-spacing:.08em}.connection-row small{font-size:11px;color:var(--muted,#929292);overflow-wrap:anywhere}.connection-status,.connection-pending{font-size:9px;letter-spacing:.1em;white-space:nowrap}.connection-status{color:#d8ff3e}.connection-pending{color:#999}.settings-note{margin:14px 0 0;color:var(--muted,#929292);font-size:11px;line-height:1.6}.connection-row .social-action{padding:9px 12px;font-size:10px;white-space:nowrap}
