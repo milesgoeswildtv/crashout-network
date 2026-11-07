@@ -28,3 +28,6 @@ enable_signup = true
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
+
+[functions.complete-destination-link]
+verify_jwt = false
