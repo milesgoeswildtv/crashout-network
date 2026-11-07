@@ -1,0 +1,17 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(12);
+select ok(to_regclass('public.destination_integrations') is not null,'destination integration registry exists');
+select ok(to_regclass('public.destination_link_sessions') is not null,'one-time destination link sessions exist');
+select is((select count(*)::integer from public.destination_integrations),6,'all six known destinations have registry entries');
+select is((select count(*)::integer from public.destination_integrations where enabled),0,'no destination is enabled before its adapter is verified');
+select ok(not has_table_privilege('authenticated','public.destination_integrations','UPDATE'),'browser users cannot enable or edit destination integrations');
+select ok(not has_table_privilege('authenticated','public.destination_link_sessions','SELECT'),'browser users cannot inspect link session tokens or metadata');
+select ok(not has_function_privilege('authenticated','public.complete_destination_link(public.game_key,text,text)','EXECUTE'),'browser users cannot complete a destination link');
+select ok(has_function_privilege('service_role','public.complete_destination_link(public.game_key,text,text)','EXECUTE'),'only the server-side gateway role can execute completion');
+select ok(has_function_privilege('authenticated','public.start_destination_link(public.game_key,text)','EXECUTE'),'signed-in players can request a link handshake');
+select ok(to_regprocedure('public.complete_destination_link(text,text)') is null,'unscoped legacy completion RPC is removed');
+select ok(pg_get_functiondef('public.complete_destination_link(public.game_key,text,text)'::regprocedure) like '%s.game_key=p_game_key%','completion requires the token destination to match the authenticated adapter destination');
+select ok(pg_get_functiondef('public.complete_destination_link(public.game_key,text,text)'::regprocedure) like '%i.enabled=true%','completion refuses links after a destination is disabled');
+select * from finish();
+rollback;
