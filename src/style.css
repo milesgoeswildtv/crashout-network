@@ -33,3 +33,5 @@
 /* Registry-driven destination availability */
 .enter:disabled{opacity:.58;cursor:not-allowed;filter:saturate(.55)}
 .enter:disabled:hover{transform:none}
+
+.destination-actions{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end}.destination-actions .social-action{font-size:8px;padding:9px 10px}.destination-actions .social-action:disabled{opacity:.45;cursor:wait}@media(max-width:640px){.connection-row{align-items:flex-start;flex-wrap:wrap}.destination-actions{width:100%;justify-content:flex-start}.destination-actions .social-action{flex:1}}
