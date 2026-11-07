@@ -56,7 +56,7 @@ for (const fragment of [
   "grant execute on function public.complete_destination_link(text,text) to service_role",
   "grant execute on function public.start_destination_link(public.game_key,text) to authenticated",
 ]) assert.ok(destinationSql.includes(fragment), 'Missing destination-linking safety invariant: ' + fragment);
-assert.ok(!/grant\\s+execute\\s+on\\s+function\\s+public\\.complete_destination_link[^;]*to\\s+authenticated/i.test(destinationSql),
+assert.ok(!/grant\s+execute\s+on\s+function\s+public\.complete_destination_link[^;]*to\s+authenticated/i.test(destinationSql),
   'Only trusted destination adapters may complete destination links');
 
 console.log('Destination registry and link-session trust-boundary checks passed.');
