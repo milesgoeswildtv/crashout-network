@@ -36,12 +36,12 @@ function constantTimeEqual(left: string, right: string): boolean {
 Deno.serve(async (request) => {
   if (request.method !== "POST") return json(405, { error: "method_not_allowed" });
 
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (contentLength > 8192) return json(413, { error: "request_too_large" });
+  const rawBody = await request.text();
+  if (new TextEncoder().encode(rawBody).byteLength > 8192) return json(413, { error: "request_too_large" });
 
   let body: { game_key?: unknown; token?: unknown; external_player_id?: unknown };
   try {
-    body = await request.json();
+    body = JSON.parse(rawBody);
   } catch {
     return json(400, { error: "invalid_json" });
   }
