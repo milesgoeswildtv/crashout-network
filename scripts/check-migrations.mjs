@@ -15,6 +15,7 @@ const migrations = [
   '0011_player_avatars.sql',
   '0012_public_profile_avatars.sql',
   '0013_destination_registry_linking.sql',
+  '0014_destination_adapter_gateway.sql',
 ];
 for (const name of migrations) {
   const path = new URL('../supabase/migrations/' + name, import.meta.url);
@@ -60,3 +61,28 @@ assert.ok(!/grant\s+execute\s+on\s+function\s+public\.complete_destination_link[
   'Only trusted destination adapters may complete destination links');
 
 console.log('Destination registry and link-session trust-boundary checks passed.');
+
+const gatewaySql = readFileSync(new URL('../supabase/migrations/0014_destination_adapter_gateway.sql', import.meta.url), 'utf8');
+for (const fragment of [
+  'p_game_key public.game_key',
+  'and s.game_key=p_game_key',
+  'and i.enabled=true',
+  'grant execute on function public.complete_destination_link(public.game_key,text,text) to service_role',
+]) assert.ok(gatewaySql.includes(fragment), 'Missing adapter-gateway database invariant: ' + fragment);
+
+const gateway = readFileSync(new URL('../supabase/functions/complete-destination-link/index.ts', import.meta.url), 'utf8');
+for (const fragment of [
+  'CRASHOUT_SHYST_ADAPTER_KEY_SHA256',
+  'CRASHOUT_POKER_ADAPTER_KEY_SHA256',
+  'CRASHOUT_REALMS_ADAPTER_KEY_SHA256',
+  'CRASHOUT_RITUALS_ADAPTER_KEY_SHA256',
+  'CRASHOUT_DEGEN_ADAPTER_KEY_SHA256',
+  'CRASHOUT_MMO_ADAPTER_KEY_SHA256',
+  'x-crashout-adapter-key',
+  'constantTimeEqual',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'p_game_key: gameKey',
+]) assert.ok(gateway.includes(fragment), 'Missing destination gateway security invariant: ' + fragment);
+assert.ok(!gateway.includes('Access-Control-Allow-Origin: *'), 'Server-to-server gateway must not expose wildcard browser CORS');
+
+console.log('Destination adapter gateway authentication and destination-binding checks passed.');

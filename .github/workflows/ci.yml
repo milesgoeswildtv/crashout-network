@@ -26,3 +26,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run check:migrations
       - run: npm run build
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check destination adapter gateway
+        run: deno check supabase/functions/complete-destination-link/index.ts
