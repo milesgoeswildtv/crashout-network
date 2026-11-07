@@ -7,7 +7,7 @@ select is((select count(*)::integer from public.destination_integrations),6,'all
 select is((select count(*)::integer from public.destination_integrations where enabled),0,'no destination is enabled before its adapter is verified');
 select ok(not has_table_privilege('authenticated','public.destination_integrations','UPDATE'),'browser users cannot enable or edit destination integrations');
 select ok(not has_table_privilege('authenticated','public.destination_link_sessions','SELECT'),'browser users cannot inspect link session tokens or metadata');
-select ok(not has_function_privilege('authenticated','public.complete_destination_link(text,text)','EXECUTE'),'browser users cannot complete a destination link');
+select ok(not has_function_privilege('authenticated','public.complete_destination_link(public.game_key,text,text)','EXECUTE'),'browser users cannot complete a destination link');
 select ok(has_function_privilege('service_role','public.complete_destination_link(text,text)','EXECUTE'),'trusted destination adapters can complete a verified link');
 select ok(has_function_privilege('authenticated','public.start_destination_link(public.game_key,text)','EXECUTE'),'signed-in players can request a link handshake');
 select * from finish();
