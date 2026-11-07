@@ -14,6 +14,7 @@ const migrations = [
   '0010_achievements_progress.sql',
   '0011_player_avatars.sql',
   '0012_public_profile_avatars.sql',
+  '0013_destination_registry_linking.sql',
 ];
 for (const name of migrations) {
   const path = new URL('../supabase/migrations/' + name, import.meta.url);
@@ -44,3 +45,18 @@ assert.ok(publicAvatarSql.includes('avatar_url text'), 'Public profile RPC must 
 assert.ok(publicAvatarSql.includes('not exists(select 1 from public.user_blocks'), 'Public profile RPC must preserve block visibility checks');
 
 console.log('Migration structure, achievement trust boundaries, avatar ownership, and public-profile privacy checks passed (SQL execution is still required against Supabase).');
+
+const destinationSql = readFileSync(new URL('../supabase/migrations/0013_destination_registry_linking.sql', import.meta.url), 'utf8');
+for (const fragment of [
+  "integration_state in ('disabled','adapter_required','ready','maintenance')",
+  "check (not enabled or (integration_state = 'ready' and launch_url is not null))",
+  "encode(digest(convert_to(raw_token,'UTF8'),'sha256'),'hex')",
+  "expires_at>now()",
+  "revoke all on function public.complete_destination_link(text,text) from public,anon,authenticated",
+  "grant execute on function public.complete_destination_link(text,text) to service_role",
+  "grant execute on function public.start_destination_link(public.game_key,text) to authenticated",
+]) assert.ok(destinationSql.includes(fragment), 'Missing destination-linking safety invariant: ' + fragment);
+assert.ok(!/grant\\s+execute\\s+on\\s+function\\s+public\\.complete_destination_link[^;]*to\\s+authenticated/i.test(destinationSql),
+  'Only trusted destination adapters may complete destination links');
+
+console.log('Destination registry and link-session trust-boundary checks passed.');
