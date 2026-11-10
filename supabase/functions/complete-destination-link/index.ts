@@ -1,37 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const allowedKeys = ["shyst", "poker", "realms", "rituals", "degen", "mmo"] as const;
-type GameKey = typeof allowedKeys[number];
-
-const secretEnv: Record<GameKey, string> = {
-  shyst: "CRASHOUT_SHYST_ADAPTER_KEY_SHA256",
-  poker: "CRASHOUT_POKER_ADAPTER_KEY_SHA256",
-  realms: "CRASHOUT_REALMS_ADAPTER_KEY_SHA256",
-  rituals: "CRASHOUT_RITUALS_ADAPTER_KEY_SHA256",
-  degen: "CRASHOUT_DEGEN_ADAPTER_KEY_SHA256",
-  mmo: "CRASHOUT_MMO_ADAPTER_KEY_SHA256",
-};
-
-function json(status: number, body: Record<string, unknown>) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-  });
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function constantTimeEqual(left: string, right: string): boolean {
-  if (left.length !== right.length) return false;
-  let mismatch = 0;
-  for (let index = 0; index < left.length; index++) {
-    mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
-  }
-  return mismatch === 0;
-}
+import { authenticateAdapter, isGameKey, json } from "../_shared/adapter-auth.ts";
 
 Deno.serve(async (request) => {
   if (request.method !== "POST") return json(405, { error: "method_not_allowed" });
@@ -49,20 +17,14 @@ Deno.serve(async (request) => {
   const gameKey = body.game_key;
   const token = body.token;
   const externalPlayerId = body.external_player_id;
-  if (typeof gameKey !== "string" || !allowedKeys.includes(gameKey as GameKey)
+  if (!isGameKey(gameKey)
       || typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token)
       || typeof externalPlayerId !== "string" || externalPlayerId.trim().length < 1
       || externalPlayerId.trim().length > 200) {
     return json(400, { error: "invalid_link_request" });
   }
 
-  const key = request.headers.get("x-crashout-adapter-key") ?? "";
-  if (key.length < 32 || key.length > 256) return json(401, { error: "adapter_authentication_failed" });
-
-  const envName = secretEnv[gameKey as GameKey];
-  const expectedHash = Deno.env.get(envName) ?? "";
-  if (!/^[a-f0-9]{64}$/.test(expectedHash)
-      || !constantTimeEqual(await sha256Hex(key), expectedHash)) {
+  if (!await authenticateAdapter(request, gameKey)) {
     return json(401, { error: "adapter_authentication_failed" });
   }
 
