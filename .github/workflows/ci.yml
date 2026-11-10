@@ -29,5 +29,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Type-check destination adapter gateway
-        run: deno check supabase/functions/complete-destination-link/index.ts
+      - name: Test destination adapter authentication
+        run: deno test --allow-env supabase/functions/_shared/adapter-auth.test.ts
+      - name: Type-check destination adapter gateways
+        run: deno check supabase/functions/complete-destination-link/index.ts supabase/functions/resolve-destination-identity/index.ts
