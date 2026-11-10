@@ -48,6 +48,16 @@ Retain a distinct account-link operation for legacy destination accounts:
 
 The current SHYST flow already uses a one-time token and a central Supabase Edge Function gateway. Treat it as a migration bridge, not the permanent SSO protocol. Keep the adapter credential server-side, destination-scoped, rotatable and out of browser code. Replace static shared-secret coupling with a documented signed service-to-service protocol when the gateway is hardened; do not weaken or bypass the current check.
 
+## Destination identity resolution contract
+
+The trusted `resolve-destination-identity` Edge Function is server-to-server only:
+- `POST /functions/v1/resolve-destination-identity`
+- Header: `x-crashout-adapter-key` (destination-specific secret; never browser-visible)
+- Body: `{ "game_key": "shyst", "crashout_user_id": "<verified OIDC sub UUID>" }`
+- Response: `{ "ok": true, "game_key": "shyst", "linked": true|false, "external_player_id": "<local player id or null>", "linked_at": "<timestamp or null>" }`
+
+The destination must validate the OIDC ID token (issuer, signature/JWKS, audience, expiry, nonce and subject) before sending its `sub`. The gateway independently authenticates the destination adapter, checks that the destination is enabled and ready, and returns only that destination's linked player ID. Never call this endpoint from a browser or accept an unverified subject. If no mapping exists, the destination keeps the user in its legacy account-creation/link flow; do not silently merge by email or username.
+
 ## Service boundaries
 
 - **CRASHOUT Auth:** authentication, canonical subject, provider identities, OAuth clients, consent, sessions and revocation.
