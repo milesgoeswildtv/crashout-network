@@ -119,40 +119,6 @@ select is(
          and p.with_check ilike '%aud%'
      )),
   0,
-  'every exposed RLS table rejects OIDC ID tokens as Data API credentials'
-);
-
-
-select is(
-  (select count(*)::integer
-   from pg_class c join pg_namespace n on n.oid=c.relnamespace
-   where n.nspname='public' and c.relkind='r' and c.relrowsecurity
-     and (
-       has_table_privilege('anon',c.oid,'SELECT')
-       or has_table_privilege('anon',c.oid,'INSERT')
-       or has_table_privilege('anon',c.oid,'UPDATE')
-       or has_table_privilege('anon',c.oid,'DELETE')
-       or has_table_privilege('authenticated',c.oid,'SELECT')
-       or has_table_privilege('authenticated',c.oid,'INSERT')
-       or has_table_privilege('authenticated',c.oid,'UPDATE')
-       or has_table_privilege('authenticated',c.oid,'DELETE')
-     )
-     and not exists(
-       select 1 from pg_policies p
-       where p.schemaname='public' and p.tablename=c.relname
-         and p.policyname='oauth_id_token_audience_guard'
-         and p.permissive='RESTRICTIVE'
-         and 'anon'=any(p.roles) and 'authenticated'=any(p.roles)
-         and p.qual ilike '%role%'
-         and p.qual ilike '%iss%'
-         and p.qual ilike '%ref%'
-         and p.qual ilike '%aud%'
-         and p.with_check ilike '%role%'
-         and p.with_check ilike '%iss%'
-         and p.with_check ilike '%ref%'
-         and p.with_check ilike '%aud%'
-     )),
-  0,
   'every exposed RLS table rejects OAuth ID tokens while preserving native anon and user JWTs'
 );
 
