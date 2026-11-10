@@ -89,7 +89,7 @@ The current SHYST flow already uses a one-time token and a central Supabase Edge
 - complete-destination-link is active, verify_jwt=false, and validates a destination-specific SHA-256 adapter-key hash before calling the narrowly scoped complete_destination_link database function.
 - The Edge Function accepts only an allowlisted game key, a 64-character one-time token and a bounded external player ID. It does not log the raw token, adapter key or external account ID.
 - The current path is a static per-destination shared-secret gateway, not OAuth SSO. It is acceptable as a transitional server-to-server bridge if secret provisioning, rotation and runtime verification are fixed.
-- The SQL linking function consumes a short-lived, hashed, one-time token and writes an audit row. The deployed flow still needs explicit uniqueness, conflict, idempotency and ownership-proof regression tests.
+- The SQL linking function consumes a short-lived, hashed, one-time token and writes an audit row. The hosted database already has unique indexes enforcing one destination account per CRASHOUT user per game and one CRASHOUT user per external destination account. Regression tests still need to prove the intended conflict responses, atomic token consumption, replay rejection, idempotent retries and dual-account ownership proof.
 
 ## Delivery plan and gates
 
