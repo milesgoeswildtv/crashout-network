@@ -32,7 +32,7 @@ Never merge accounts by matching email, username, display name or user-supplied 
 6. The destination maps the stable CRASHOUT subject (sub) to its local player record. It does not trust browser-supplied identity claims.
 7. Refresh tokens are stored only in appropriately protected client/server storage, rotated, revoked on logout/account-security events, and never logged.
 
-Use asymmetric JWT signing (for example ES256 or RS256) and publish verification keys through the provider's JWKS endpoint before relying on tokens across independently deployed services. Validate issuer, audience, expiry, not-before, signature, client and required scopes. Do not share the Supabase service-role key or JWT signing secret with destinations. Supabase's documented OAuth Server currently supports Authorization Code + PKCE and Refresh Token grants; it does not support client_credentials. Therefore this user sign-in protocol does not replace machine-to-machine authentication between destination services and the integration gateway. The OAuth Server's third-party client flow also requires custom client implementation; do not assume supabase-js provides the relying-party SDK.
+Use asymmetric JWT signing (for example ES256 or RS256) and publish verification keys through the provider's JWKS endpoint before relying on tokens across independently deployed services. OIDC ID tokens require asymmetric signing; Supabase recommends asymmetric signing for OAuth verification generally. Validate issuer, audience, expiry, not-before, signature and client. Supabase's documented OAuth Server currently supports Authorization Code + PKCE and Refresh Token grants; it does not support client_credentials. Therefore this user sign-in protocol does not replace machine-to-machine authentication between destination services and the integration gateway. The third-party relying-party flow is custom client work; `supabase-js` supplies the CRASHOUT authorization/consent UI methods, not a complete third-party client SDK.
 
 ## Account linking is a separate capability
 
@@ -61,7 +61,7 @@ The current SHYST flow already uses a one-time token and a central Supabase Edge
 - OAuth Authorization Code + PKCE; exact HTTPS redirect URI allowlists; separate OAuth clients for production and non-production.
 - Asymmetric signing keys, JWKS verification, key-rotation runbook and overlap period.
 - Short-lived access tokens; refresh-token rotation and revocation; secure session lifecycle.
-- Explicit consent and least-privilege scopes. No implicit “all games can read everything” scope.
+- Explicit consent. Important Supabase OAuth Server limitation: standard OIDC scopes (`openid`, `email`, `profile`, `phone`) control identity claims/UserInfo, not database/API access; custom scopes are not currently supported. OAuth access tokens otherwise carry normal authenticated-user data access plus `client_id`. Enforce per-client least privilege with dedicated RLS policies using `auth.jwt()->>'client_id'`, and enforce destination permissions again in each destination API. Never assume the consent scopes themselves restrict database access.
 - Server-side authorization on every destination API; never trust user metadata or client-supplied role claims.
 - RLS on exposed Supabase tables; private tables and privileged functions remain least-privilege. Audit every link, unlink, provider change, role change and privileged action.
 - Complete a function-by-function SECURITY DEFINER authorization review and enable leaked-password protection before expanding the identity provider surface.
@@ -113,7 +113,7 @@ The current SHYST flow already uses a one-time token and a central Supabase Edge
 
 ### Phase 1 — Identity-provider pilot
 - Verify the current Supabase OAuth Server beta status, signing-key requirements, redirect behavior, client registration, token claims and revocation behavior.
-- Build the CRASHOUT authorization/consent UI and register a separate SHYST staging client with exact callback URLs.
+- Build the CRASHOUT authorization/consent UI using `supabase.auth.oauth.getAuthorizationDetails`, `approveAuthorization` and `denyAuthorization`; register a separate SHYST staging client with exact callback URLs. Before issuing tokens, add and test `client_id`-aware RLS policies so the SHYST OAuth client cannot inherit unrestricted direct-user database access.
 - Implement the destination callback and token validation using standards-compliant OIDC libraries; no custom JWT parsing.
 - Run staging tests, security tests and mobile browser tests before any production client is enabled.
 
