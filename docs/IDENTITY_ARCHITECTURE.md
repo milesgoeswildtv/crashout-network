@@ -64,6 +64,7 @@ The current SHYST flow already uses a one-time token and a central Supabase Edge
 - Explicit consent and least-privilege scopes. No implicit “all games can read everything” scope.
 - Server-side authorization on every destination API; never trust user metadata or client-supplied role claims.
 - RLS on exposed Supabase tables; private tables and privileged functions remain least-privilege. Audit every link, unlink, provider change, role change and privileged action.
+- Complete a function-by-function SECURITY DEFINER authorization review and enable leaked-password protection before expanding the identity provider surface.
 - Rate limits, replay protection, idempotency, bounded request sizes and no tokens/secrets/PII in logs.
 - Account recovery and provider-unlink safeguards; require a verified recovery method before removing the last login method.
 - Automated tests for cross-account takeover, wrong client/audience, wrong issuer, expired/replayed code, revoked session, duplicate link, account reassignment, and destination isolation.
@@ -84,6 +85,11 @@ The current SHYST flow already uses a one-time token and a central Supabase Edge
 - The current SHYST GitHub Actions deploy workflow deploys Worker and Pages, but its explicit wrangler secret put steps cover Discord and Telegram secrets—not CRASHOUT_SHYST_ADAPTER_KEY. A manually configured Cloudflare secret should normally persist across Worker versions, but the workflow does not provision, rotate or verify this adapter secret.
 - The deploy workflow verifies generic /api/health, but does not verify the adapter binding or execute a safe end-to-end link smoke test. This leaves a gap between “deployment succeeded” and “account linking works.”
 - SHYST's wrangler.jsonc has APP_URL set to https://tournament-platform.pages.dev, while the production verification workflow defaults to https://tournament-platform-9fd.pages.dev. This origin mismatch must be reconciled from actual Cloudflare project configuration before changing redirects or allowlists.
+
+### Supabase security posture
+- The live Supabase Security Advisor currently reports 22 exposed SECURITY DEFINER functions callable by authenticated users. Some may be intentional RPCs, but each must be reviewed for an explicit auth.uid()/role/ownership check; do not bulk-revoke them or switch them to SECURITY INVOKER without reviewing their contracts.
+- The advisor also reports leaked-password protection disabled. Enable and test this Auth protection before broadening production sign-in or enabling the OAuth pilot.
+- Three RLS-enabled tables have no policies: achievement_events, destination_link_sessions and player_reports. Their current migrations revoke direct client access and use trusted functions/service-role paths, so this appears deny-by-default by design; verify grants remain restricted as migrations evolve.
 
 ### Hosted gateway
 - complete-destination-link is active, verify_jwt=false, and validates a destination-specific SHA-256 adapter-key hash before calling the narrowly scoped complete_destination_link database function.
