@@ -61,7 +61,7 @@ The current SHYST flow already uses a one-time token and a central Supabase Edge
 - OAuth Authorization Code + PKCE; exact HTTPS redirect URI allowlists; separate OAuth clients for production and non-production.
 - Asymmetric signing keys, JWKS verification, key-rotation runbook and overlap period.
 - Short-lived access tokens; refresh-token rotation and revocation; secure session lifecycle.
-- Explicit consent. Important Supabase OAuth Server limitation: standard OIDC scopes (`openid`, `email`, `profile`, `phone`) control identity claims/UserInfo, not database/API access; custom scopes are not currently supported. OAuth access tokens otherwise carry normal authenticated-user data access plus `client_id`. Enforce per-client least privilege with dedicated RLS policies using `auth.jwt()->>'client_id'`, and enforce destination permissions again in each destination API. Never assume the consent scopes themselves restrict database access.
+- Explicit consent. Important Supabase OAuth Server limitation: standard OIDC scopes (`openid`, `email`, `profile`, `phone`) control identity claims/UserInfo, not database/API access; custom scopes are not currently supported. OAuth access tokens otherwise carry normal authenticated-user data access plus `client_id`. The selected mitigation is a Custom Access Token Hook that changes OAuth access-token `role` to a dedicated privilege-free Postgres role, plus restrictive RLS audience guards that reject OIDC ID tokens as Data API credentials. Destination permissions are still enforced by each destination API. Never assume consent scopes restrict database access.
 - Server-side authorization on every destination API; never trust user metadata or client-supplied role claims.
 - RLS on exposed Supabase tables; private tables and privileged functions remain least-privilege. Audit every link, unlink, provider change, role change and privileged action.
 - Complete a function-by-function SECURITY DEFINER authorization review and enable leaked-password protection before expanding the identity provider surface.
@@ -118,7 +118,7 @@ The current SHYST flow already uses a one-time token and a central Supabase Edge
 
 ### Phase 1 — Identity-provider pilot
 - Verify the current Supabase OAuth Server beta status, signing-key requirements, redirect behavior, client registration, token claims and revocation behavior.
-- Build the CRASHOUT authorization/consent UI using `supabase.auth.oauth.getAuthorizationDetails`, `approveAuthorization` and `denyAuthorization`; register a separate SHYST staging client with exact callback URLs. Before issuing tokens, add and test `client_id`-aware RLS policies so the SHYST OAuth client cannot inherit unrestricted direct-user database access.
+- Build the CRASHOUT authorization/consent UI using `supabase.auth.oauth.getAuthorizationDetails`, `approveAuthorization` and `denyAuthorization`; register a separate SHYST staging client with exact callback URLs. Apply migration 0015 and enable the Custom Access Token Hook in the hosted Auth dashboard before enabling OAuth Server or registering any production client. Prove OAuth access tokens use the isolated Postgres role and ID tokens cannot query the Data API.
 - Implement the destination callback and token validation using standards-compliant OIDC libraries; no custom JWT parsing.
 - Run staging tests, security tests and mobile browser tests before any production client is enabled.
 
