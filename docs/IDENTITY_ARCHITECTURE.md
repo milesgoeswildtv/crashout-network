@@ -103,6 +103,11 @@ The current SHYST flow already uses a one-time token and a central Supabase Edge
 - Leaked-password protection remains disabled in hosted Auth. The connected Supabase tools expose read-only project inspection and SQL, not the Auth password-security configuration control. This must be enabled and verified in the Supabase dashboard before the identity pilot expands; do not claim it is enabled.
 - SHYST PR #13's full CI test job passed, including typechecks, unit tests, multiplayer integration tests, web build and phone-size browser tests. Cloudflare Pages produced a preview. Cloudflare Workers Builds for tournament-platform-api reported failure; the production deploy job was skipped because this was a pull-request run. Therefore there is no Worker deployment proof yet, and PR #13 must not be described as deployed or production-ready. The available GitHub check summary links to Cloudflare's build detail but does not expose the underlying build error through the connected GitHub API.
 
+### Deployment ownership
+- SHYST currently has two production deployment mechanisms connected to the same repository: GitHub Actions runs the full test suite and deploys Worker + Pages on main, while Cloudflare Git integrations also build Pages previews and a separate Workers Builds integration targets `tournament-platform-api`.
+- The PR's GitHub Actions test job passed, Pages preview succeeded, but the Cloudflare Workers Builds check failed. GitHub Actions correctly skipped its production deploy for the PR. The Cloudflare build error detail is behind the authenticated dashboard and is not exposed by the connected GitHub API.
+- Production must have one authoritative deploy path. The preferred owner is GitHub Actions because it gates Worker + Pages deployment on typecheck, unit/integration tests, browser QA, migrations and explicit runtime readiness. Cloudflare Git integration should be restricted to previews or disconnected from production deploys; the competing Workers Builds pipeline should not be allowed to independently publish the Worker. Do not change this dashboard setting until the failing build and current deployment bindings are reconciled.
+
 ## Delivery plan and gates
 
 ### Phase 0 — Baseline and stop the false-green state
