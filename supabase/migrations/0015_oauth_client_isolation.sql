@@ -51,7 +51,7 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SET search_path = ''
-AS $
+AS $guard$
   SELECT
     (
       (auth.jwt() ->> 'role' = 'anon'
@@ -61,7 +61,7 @@ AS $
       (auth.jwt() ->> 'role' = 'authenticated'
         AND auth.jwt() ->> 'aud' = 'authenticated')
     )
-$;
+$guard$;
 
 REVOKE ALL ON FUNCTION public.data_api_token_audience_allowed() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.data_api_token_audience_allowed() TO anon, authenticated;
