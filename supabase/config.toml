@@ -35,3 +35,6 @@ enable_confirmations = false
 
 [functions.complete-destination-link]
 verify_jwt = false
+
+[functions.resolve-destination-identity]
+verify_jwt = false
