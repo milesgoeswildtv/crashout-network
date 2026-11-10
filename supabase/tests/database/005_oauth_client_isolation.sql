@@ -1,7 +1,7 @@
 -- OAuth client isolation regression tests.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(21);
 
 select ok(
   exists(select 1 from pg_roles where rolname='crashout_oauth_client' and not rolcanlogin and not rolbypassrls),
@@ -109,17 +109,43 @@ select is(
          and p.policyname='oauth_id_token_audience_guard'
          and p.permissive='RESTRICTIVE'
          and 'anon'=any(p.roles) and 'authenticated'=any(p.roles)
-         and p.qual ilike '%role%'
-         and p.qual ilike '%iss%'
-         and p.qual ilike '%ref%'
-         and p.qual ilike '%aud%'
-         and p.with_check ilike '%role%'
-         and p.with_check ilike '%iss%'
-         and p.with_check ilike '%ref%'
-         and p.with_check ilike '%aud%'
+         and p.qual ilike '%data_api_token_audience_allowed%'
+         and p.with_check ilike '%data_api_token_audience_allowed%'
      )),
   0,
   'every exposed RLS table rejects OAuth ID tokens while preserving native anon and user JWTs'
+);
+
+
+select ok(
+  has_function_privilege('anon','public.data_api_token_audience_allowed()','EXECUTE')
+  and has_function_privilege('authenticated','public.data_api_token_audience_allowed()','EXECUTE'),
+  'native anon and authenticated roles can evaluate the Data API audience guard'
+);
+select ok(
+  not has_function_privilege('crashout_oauth_client','public.data_api_token_audience_allowed()','EXECUTE'),
+  'isolated OAuth clients cannot invoke the Data API audience guard'
+);
+
+select set_config('request.jwt.claims','{"iss":"supabase","ref":"local-project","role":"anon"}',true);
+select ok(
+  public.data_api_token_audience_allowed(),
+  'the native anonymous API key remains allowed through the audience guard'
+);
+select set_config('request.jwt.claims','{"iss":"https://local-project.supabase.co/auth/v1","aud":"authenticated","role":"authenticated","sub":"11111111-1111-1111-1111-111111111111"}',true);
+select ok(
+  public.data_api_token_audience_allowed(),
+  'ordinary signed-in CRASHOUT sessions remain allowed through the audience guard'
+);
+select set_config('request.jwt.claims','{"iss":"https://local-project.supabase.co/auth/v1","aud":"shyst-staging-client","role":"authenticated","sub":"11111111-1111-1111-1111-111111111111"}',true);
+select ok(
+  not public.data_api_token_audience_allowed(),
+  'OIDC ID tokens are rejected as Data API credentials by their client audience'
+);
+select set_config('request.jwt.claims','{"iss":"https://local-project.supabase.co/auth/v1","aud":"authenticated","role":"crashout_oauth_client","client_id":"shyst-staging-client","sub":"11111111-1111-1111-1111-111111111111"}',true);
+select ok(
+  not public.data_api_token_audience_allowed(),
+  'OAuth access tokens are rejected by the Data API audience guard after role isolation'
 );
 
 select * from finish();
