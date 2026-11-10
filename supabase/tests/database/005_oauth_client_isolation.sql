@@ -1,7 +1,7 @@
 -- OAuth client isolation regression tests.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(22);
 
 select ok(
   exists(select 1 from pg_roles where rolname='crashout_oauth_client' and not rolcanlogin and not rolbypassrls),
@@ -146,6 +146,13 @@ select set_config('request.jwt.claims','{"iss":"https://local-project.supabase.c
 select ok(
   not public.data_api_token_audience_allowed(),
   'OAuth access tokens are rejected by the Data API audience guard after role isolation'
+);
+
+
+select set_config('request.jwt.claims','{"iss":"https://local-project.supabase.co/auth/v1","aud":"authenticated","role":"authenticated","client_id":"shyst-staging-client","sub":"11111111-1111-1111-1111-111111111111"}',true);
+select ok(
+  not public.data_api_token_audience_allowed(),
+  'OAuth access tokens with client_id are rejected even if their role claim is still authenticated'
 );
 
 select * from finish();
