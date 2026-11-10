@@ -70,7 +70,7 @@ BEGIN
       )
   LOOP
     EXECUTE format(
-      'CREATE POLICY oauth_id_token_audience_guard ON public.%I AS RESTRICTIVE FOR ALL TO anon, authenticated USING ((auth.jwt() ->> ''aud'') IN (''anon'', ''authenticated'')) WITH CHECK ((auth.jwt() ->> ''aud'') IN (''anon'', ''authenticated''))',
+      'CREATE POLICY oauth_id_token_audience_guard ON public.%I AS RESTRICTIVE FOR ALL TO anon, authenticated USING (((auth.jwt() ->> ''role'') = ''anon'' AND (auth.jwt() ->> ''iss'') = ''supabase'' AND (auth.jwt() ? ''ref'')) OR ((auth.jwt() ->> ''role'') = ''authenticated'' AND (auth.jwt() ->> ''aud'') = ''authenticated'')) WITH CHECK (((auth.jwt() ->> ''role'') = ''anon'' AND (auth.jwt() ->> ''iss'') = ''supabase'' AND (auth.jwt() ? ''ref'')) OR ((auth.jwt() ->> ''role'') = ''authenticated'' AND (auth.jwt() ->> ''aud'') = ''authenticated''))',
       table_row.relname
     );
   END LOOP;
