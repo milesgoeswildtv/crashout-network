@@ -42,6 +42,30 @@ GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
 GRANT EXECUTE ON FUNCTION public.custom_access_token_hook(jsonb) TO supabase_auth_admin;
 REVOKE ALL ON FUNCTION public.custom_access_token_hook(jsonb) FROM PUBLIC, anon, authenticated;
 
+
+-- Data API audience guard. Anonymous public-key requests and ordinary
+-- authenticated user sessions retain their existing behavior. OAuth ID tokens
+-- (audience = client id) and isolated OAuth access tokens are rejected.
+CREATE OR REPLACE FUNCTION public.data_api_token_audience_allowed()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $
+  SELECT
+    (
+      (auth.jwt() ->> 'role' = 'anon'
+        AND auth.jwt() ->> 'iss' = 'supabase'
+        AND auth.jwt() ? 'ref')
+      OR
+      (auth.jwt() ->> 'role' = 'authenticated'
+        AND auth.jwt() ->> 'aud' = 'authenticated')
+    )
+$;
+
+REVOKE ALL ON FUNCTION public.data_api_token_audience_allowed() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.data_api_token_audience_allowed() TO anon, authenticated;
+
 -- OIDC ID tokens are for identity, not Data API authorization. Their audience
 -- is the OAuth client id, unlike Supabase anon/authenticated access tokens.
 -- Apply a restrictive guard to every RLS-enabled public table exposed to either
@@ -70,7 +94,7 @@ BEGIN
       )
   LOOP
     EXECUTE format(
-      'CREATE POLICY oauth_id_token_audience_guard ON public.%I AS RESTRICTIVE FOR ALL TO anon, authenticated USING (((auth.jwt() ->> ''role'') = ''anon'' AND (auth.jwt() ->> ''iss'') = ''supabase'' AND (auth.jwt() ? ''ref'')) OR ((auth.jwt() ->> ''role'') = ''authenticated'' AND (auth.jwt() ->> ''aud'') = ''authenticated'')) WITH CHECK (((auth.jwt() ->> ''role'') = ''anon'' AND (auth.jwt() ->> ''iss'') = ''supabase'' AND (auth.jwt() ? ''ref'')) OR ((auth.jwt() ->> ''role'') = ''authenticated'' AND (auth.jwt() ->> ''aud'') = ''authenticated''))',
+      'CREATE POLICY oauth_id_token_audience_guard ON public.%I AS RESTRICTIVE FOR ALL TO anon, authenticated USING (public.data_api_token_audience_allowed()) WITH CHECK (public.data_api_token_audience_allowed())',
       table_row.relname
     );
   END LOOP;
