@@ -59,7 +59,8 @@ AS $guard$
         AND auth.jwt() ? 'ref')
       OR
       (auth.jwt() ->> 'role' = 'authenticated'
-        AND auth.jwt() ->> 'aud' = 'authenticated')
+        AND auth.jwt() ->> 'aud' = 'authenticated'
+        AND NOT (auth.jwt() ? 'client_id'))
     )
 $guard$;
 
