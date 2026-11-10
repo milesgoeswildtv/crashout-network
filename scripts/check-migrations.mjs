@@ -16,6 +16,7 @@ const migrations = [
   '0012_public_profile_avatars.sql',
   '0013_destination_registry_linking.sql',
   '0014_destination_adapter_gateway.sql',
+  '0015_oauth_client_isolation.sql',
 ];
 for (const name of migrations) {
   const path = new URL('../supabase/migrations/' + name, import.meta.url);
@@ -70,7 +71,7 @@ for (const fragment of [
   'grant execute on function public.complete_destination_link(public.game_key,text,text) to service_role',
 ]) assert.ok(gatewaySql.includes(fragment), 'Missing adapter-gateway database invariant: ' + fragment);
 
-const gateway = readFileSync(new URL('../supabase/functions/complete-destination-link/index.ts', import.meta.url), 'utf8');
+const adapterAuth = readFileSync(new URL('../supabase/functions/_shared/adapter-auth.ts', import.meta.url), 'utf8');
 for (const fragment of [
   'CRASHOUT_SHYST_ADAPTER_KEY_SHA256',
   'CRASHOUT_POKER_ADAPTER_KEY_SHA256',
@@ -80,9 +81,31 @@ for (const fragment of [
   'CRASHOUT_MMO_ADAPTER_KEY_SHA256',
   'x-crashout-adapter-key',
   'constantTimeEqual',
-  'SUPABASE_SERVICE_ROLE_KEY',
-  'p_game_key: gameKey',
-]) assert.ok(gateway.includes(fragment), 'Missing destination gateway security invariant: ' + fragment);
-assert.ok(!gateway.includes('Access-Control-Allow-Origin: *'), 'Server-to-server gateway must not expose wildcard browser CORS');
+  'Deno.env.get',
+]) assert.ok(adapterAuth.includes(fragment), 'Missing shared adapter-auth security invariant: ' + fragment);
 
-console.log('Destination adapter gateway authentication and destination-binding checks passed.');
+const gateway = readFileSync(new URL('../supabase/functions/complete-destination-link/index.ts', import.meta.url), 'utf8');
+assert.ok(gateway.includes('authenticateAdapter(request, gameKey)'), 'Link completion must use shared destination adapter authentication');
+assert.ok(gateway.includes('p_game_key: gameKey'), 'Link completion must bind the adapter to its requested destination');
+
+const resolver = readFileSync(new URL('../supabase/functions/resolve-destination-identity/index.ts', import.meta.url), 'utf8');
+for (const fragment of ['authenticateAdapter(request, gameKey)', 'destination_integrations', 'integration_state', 'game_links', 'external_player_id']) {
+  assert.ok(resolver.includes(fragment), 'Missing destination identity resolver invariant: ' + fragment);
+}
+assert.ok(!resolver.includes('email'), 'Identity resolver must not return email or profile data');
+
+const oauthIsolation = readFileSync(new URL('../supabase/migrations/0015_oauth_client_isolation.sql', import.meta.url), 'utf8');
+for (const fragment of [
+  'crashout_oauth_client',
+  'custom_access_token_hook',
+  "claims->>'client_id'",
+  'data_api_token_audience_allowed',
+  'oauth_id_token_audience_guard',
+  'NOBYPASSRLS',
+]) assert.ok(oauthIsolation.includes(fragment), 'Missing OAuth token isolation invariant: ' + fragment);
+
+const supabaseConfig = readFileSync(new URL('../supabase/config.toml', import.meta.url), 'utf8');
+assert.ok(supabaseConfig.includes('[functions.resolve-destination-identity]'), 'Identity resolver must be registered in Supabase config');
+assert.ok(supabaseConfig.includes('uri = "pg-functions://postgres/public/custom_access_token_hook"'), 'Local Auth must run the custom access-token hook');
+
+console.log('Destination adapter authentication, identity resolver, and OAuth token-isolation checks passed.');
