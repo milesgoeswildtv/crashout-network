@@ -10,7 +10,7 @@ CRASHOUT is the canonical identity provider and account-control plane for the ne
 
 Use the existing CRASHOUT Supabase project as the initial identity system. Evaluate and, after explicit production-readiness checks, adopt Supabase Auth's OAuth 2.1 / OpenID Connect server for first-party sign-in. OAuth clients must use Authorization Code + PKCE. Do not create a proprietary password system or pass long-lived service credentials through browsers.
 
-Supabase currently documents its OAuth 2.1/OIDC server as **Public Beta**. Therefore the architecture is standards-based and designed to use it, but enabling it in production is a separate rollout gate—not an assumption. Keep the existing authenticated CRASHOUT sign-in operational while the OAuth server is tested in a non-production client.
+Supabase currently documents its OAuth 2.1/OIDC server as **Public Beta**. Therefore the architecture is standards-based and designed to use it, but enabling it in production is a separate rollout gate—not an assumption. Keep the existing authenticated CRASHOUT sign-in operational while the OAuth server is tested in a non-production client. The hosted project's OAuth Server toggle/client registrations have not yet been independently verified through the available project connection; do not assume the server is enabled.
 
 ## Identity model
 
@@ -32,7 +32,7 @@ Never merge accounts by matching email, username, display name or user-supplied 
 6. The destination maps the stable CRASHOUT subject (sub) to its local player record. It does not trust browser-supplied identity claims.
 7. Refresh tokens are stored only in appropriately protected client/server storage, rotated, revoked on logout/account-security events, and never logged.
 
-Use asymmetric JWT signing (for example ES256 or RS256) and publish verification keys through the provider's JWKS endpoint before relying on tokens across independently deployed services. Validate issuer, audience, expiry, not-before, signature, client and required scopes. Do not share the Supabase service-role key or JWT signing secret with destinations.
+Use asymmetric JWT signing (for example ES256 or RS256) and publish verification keys through the provider's JWKS endpoint before relying on tokens across independently deployed services. Validate issuer, audience, expiry, not-before, signature, client and required scopes. Do not share the Supabase service-role key or JWT signing secret with destinations. Supabase's documented OAuth Server currently supports Authorization Code + PKCE and Refresh Token grants; it does not support client_credentials. Therefore this user sign-in protocol does not replace machine-to-machine authentication between destination services and the integration gateway. The OAuth Server's third-party client flow also requires custom client implementation; do not assume supabase-js provides the relying-party SDK.
 
 ## Account linking is a separate capability
 
