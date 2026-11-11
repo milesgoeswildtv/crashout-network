@@ -4,7 +4,6 @@ import { authenticateAdapter, isGameKey, json } from "../_shared/adapter-auth.ts
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const encoder = new TextEncoder();
-const decoder = new TextDecoder();
 
 async function oidcConfig(issuer: string) {
   const url = new URL(".well-known/openid-configuration", issuer.endsWith("/") ? issuer : issuer + "/");
