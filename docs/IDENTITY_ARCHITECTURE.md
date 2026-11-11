@@ -46,7 +46,7 @@ Retain a distinct account-link operation for legacy destination accounts:
 - the database enforces uniqueness and writes an audit event atomically;
 - retries are idempotent or return a safe conflict; no silent account reassignment.
 
-The current SHYST flow already uses a one-time token and a central Supabase Edge Function gateway. Treat it as a migration bridge, not the permanent SSO protocol. Keep the adapter credential server-side, destination-scoped, rotatable and out of browser code. Replace static shared-secret coupling with a documented signed service-to-service protocol when the gateway is hardened; do not weaken or bypass the current check.
+SHYST's legacy browser token-link flow is deprecated for the SSO migration and must not be repaired as the long-term solution. Existing SHYST players will transition by starting from an authenticated SHYST session, then authenticating with CRASHOUT through OIDC. The SHYST Worker proves its existing player ID from its own session; CRASHOUT verifies the signed OIDC ID token again at the gateway and atomically claims the mapping. The destination-specific adapter credential remains server-only machine authentication; it is not a browser link token or a replacement for user proof.
 
 ## Destination identity resolution contract
 
@@ -163,3 +163,16 @@ A destination is not ready until all of the following are demonstrated in automa
 - No password storage or custom cryptographic protocol built by CRASHOUT.
 - No trust in email/username matching as proof of account ownership.
 - No production OAuth beta enablement until the pilot passes its gates.
+
+
+## Proof-based SSO claim endpoint (implementation in progress)
+
+The new `claim-destination-identity` Edge Function is server-to-server only:
+- `POST /functions/v1/claim-destination-identity`
+- Header: `x-crashout-adapter-key` (SHYST destination credential; never browser-visible)
+- Body: `{ "game_key": "shyst", "external_player_id": "<authenticated SHYST player id>", "id_token": "<OIDC ID token>", "nonce": "<transaction nonce>" }`
+- The gateway independently discovers the configured issuer, validates the asymmetric JWT signature against its JWKS, exact issuer, registered SHYST client audience, nonce, expiry and UUID subject.
+- It calls `claim_destination_identity`, which atomically creates the `game_links` row and audit event. Existing matching mappings are idempotent; either-side conflicts fail closed.
+- `CRASHOUT_OIDC_ISSUER` and `CRASHOUT_OIDC_CLIENT_ID_SHYST` must be configured only after the exact hosted Supabase OIDC discovery document and client registration are verified.
+
+This endpoint is a proof-based transition mechanism. It does not match email, username, handle or display name and does not change SHYST's local user row, sessions, tournament records, prizes or local admin flag. It must not be deployed until the function and SQL migration have passed the staging end-to-end tests. The older `complete-destination-link` flow remains temporarily for backwards compatibility only and is not the target SSO architecture.
