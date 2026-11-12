@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.resolve-destination-identity]
 verify_jwt = false
+
+[functions.claim-destination-identity]
+verify_jwt = false
