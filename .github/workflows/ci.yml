@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -19,9 +19,9 @@ jobs:
         run: supabase db reset
       - name: Run database security regression tests
         run: supabase test db
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - run: npm install
       - run: npm run typecheck
       - run: npm run check:migrations
@@ -29,5 +29,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Type-check destination adapter gateway
-        run: deno check supabase/functions/complete-destination-link/index.ts
+      - name: Test destination adapter authentication
+        run: deno test --allow-env supabase/functions/_shared/adapter-auth.test.ts
+      - name: Type-check destination adapter gateways
+        run: deno check supabase/functions/complete-destination-link/index.ts supabase/functions/resolve-destination-identity/index.ts
